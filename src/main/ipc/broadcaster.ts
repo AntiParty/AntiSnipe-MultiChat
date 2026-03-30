@@ -1,0 +1,51 @@
+import { BrowserWindow } from 'electron'
+import { RENDERER_CHANNELS } from '../../shared/types/ipc'
+import { BROADCAST_INTERVAL_MS, BROADCAST_BATCH_SIZE } from '../../shared/constants'
+import type { NormalizedMessage } from '../../shared/types/message'
+
+class Broadcaster {
+  private queue: NormalizedMessage[] = []
+  private timer: ReturnType<typeof setTimeout> | null = null
+  private win: BrowserWindow | null = null
+
+  setWindow(window: BrowserWindow): void {
+    this.win = window
+  }
+
+  enqueue(messages: NormalizedMessage | NormalizedMessage[]): void {
+    const arr = Array.isArray(messages) ? messages : [messages]
+    this.queue.push(...arr)
+    if (!this.timer) {
+      this.timer = setTimeout(() => this.flush(), BROADCAST_INTERVAL_MS)
+    }
+  }
+
+  private flush(): void {
+    this.timer = null
+    if (!this.win || this.win.isDestroyed() || !this.win.webContents) return
+
+    while (this.queue.length > 0) {
+      const batch = this.queue.splice(0, BROADCAST_BATCH_SIZE)
+      try {
+        this.win.webContents.send(RENDERER_CHANNELS.MESSAGE_BATCH, batch)
+      } catch {
+        // window may have been destroyed between checks
+      }
+    }
+
+    if (this.queue.length > 0) {
+      this.timer = setTimeout(() => this.flush(), BROADCAST_INTERVAL_MS)
+    }
+  }
+
+  send<T>(channel: string, payload: T): void {
+    if (!this.win || this.win.isDestroyed()) return
+    try {
+      this.win.webContents.send(channel, payload)
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export const broadcaster = new Broadcaster()

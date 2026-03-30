@@ -1,0 +1,133 @@
+.messageRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 2px 12px;
+  line-height: 1.5;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  transition: background-color 0.1s;
+}
+
+.messageRow:hover {
+  background-color: var(--surface-2);
+}
+
+.messageRow.highlighted {
+  background-color: var(--highlight-bg);
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+}
+
+.messageRow.mention {
+  background-color: var(--mention-bg);
+  border-left: 2px solid var(--mention-border);
+  padding-left: 10px;
+}
+
+.messageRow.deleted {
+  opacity: 0.35;
+}
+
+.messageRow.action .messageText {
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.timestamp {
+  flex-shrink: 0;
+  font-size: 0.72em;
+  color: var(--text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.platformBadge {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 6px;
+}
+
+.badgeList {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.badge {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+}
+
+.authorName {
+  font-weight: 600;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.colon {
+  flex-shrink: 0;
+  margin-right: 2px;
+  color: var(--text-muted);
+}
+
+.messageText {
+  flex: 1;
+  min-width: 0;
+}
+
+.emote {
+  display: inline-block;
+  vertical-align: middle;
+  height: calc(var(--font-size, 14px) * var(--emote-scale, 1.5));
+  width: auto;
+  max-width: 112px;
+  object-fit: contain;
+  margin: 0 1px;
+}
+
+.mentionPart {
+  background-color: var(--mention-bg);
+  border-radius: 3px;
+  padding: 0 2px;
+  color: var(--warning);
+}
+
+.linkPart {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.linkPart:hover {
+  color: var(--accent-hover);
+}
+
+.systemMessage {
+  color: var(--text-secondary);
+  font-style: italic;
+  font-size: 0.88em;
+  padding: 4px 12px;
+}
+
+.subMessage {
+  background-color: rgba(145, 71, 255, 0.08);
+  border-left: 2px solid var(--twitch);
+  padding: 4px 10px;
+  color: var(--text-secondary);
+  font-size: 0.88em;
+}
+
+.raidMessage {
+  background-color: rgba(145, 71, 255, 0.12);
+  border-left: 2px solid var(--twitch);
+  padding: 4px 10px;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.9em;
+}
