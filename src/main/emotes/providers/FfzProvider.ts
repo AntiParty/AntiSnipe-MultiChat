@@ -1,3 +1,4 @@
+import { net } from 'electron'
 import log from 'electron-log'
 import type { EmoteData } from '../../../shared/types/emote'
 
@@ -33,7 +34,7 @@ function normalize(emote: FfzEmote): EmoteData {
 
 export async function fetchFfzChannelEmotes(twitchUserId: string): Promise<EmoteData[]> {
   try {
-    const resp = await fetch(`${API}/room/id/${twitchUserId}`)
+    const resp = await net.fetch(`${API}/room/id/${twitchUserId}`)
     if (!resp.ok) return []
     const data = (await resp.json()) as { sets?: Record<string, FfzSet> }
     const emotes: EmoteData[] = []
@@ -49,7 +50,7 @@ export async function fetchFfzChannelEmotes(twitchUserId: string): Promise<Emote
 
 export async function fetchFfzGlobalEmotes(): Promise<EmoteData[]> {
   try {
-    const resp = await fetch(`${API}/set/global`)
+    const resp = await net.fetch(`${API}/set/global`)
     if (!resp.ok) return []
     const data = (await resp.json()) as { sets?: Record<string, FfzSet> }
     const emotes: EmoteData[] = []

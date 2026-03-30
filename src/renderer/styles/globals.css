@@ -19,33 +19,43 @@
   }
 
   body {
-    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-    font-size: var(--font-size, 14px);
-    line-height: 1.5;
+    /* Chatterino uses a system-ui / segoe stack — no web font */
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: var(--font-size, 13px);
+    line-height: 1.45;
     background-color: var(--surface-0);
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
   }
 
-  /* Allow text selection in chat messages */
+  /* Allow text selection in chat */
   .select-text {
     user-select: text;
     -webkit-user-select: text;
   }
 
-  /* Scrollbar styling */
+  /* Chatterino-style slim scrollbar */
   ::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 6px;
+    height: 6px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
     background: var(--scrollbar-thumb);
-    border-radius: 2px;
+    border-radius: 0;
   }
   ::-webkit-scrollbar-thumb:hover {
     background: var(--scrollbar-thumb-hover);
+  }
+
+  /* Remove all default focus rings — Chatterino uses no visible focus outlines */
+  button:focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: -1px;
+  }
+  input:focus-visible {
+    outline: none;
   }
 }

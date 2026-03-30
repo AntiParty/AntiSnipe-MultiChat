@@ -5,6 +5,7 @@ import { useStore } from '../../store'
 import { useActiveMessages } from '../../hooks/useChat'
 import MessageRow from './MessageRow'
 import ChatInput from './ChatInput'
+import styles from '../../styles/chat.module.css'
 
 export default function ChatPane() {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -21,14 +22,12 @@ export default function ChatPane() {
     measureElement: el => el.getBoundingClientRect().height
   })
 
-  // Auto-scroll to bottom when new messages arrive and we're not scrolled up
   useEffect(() => {
     if (isAtBottom && messages.length > 0) {
       virtualizer.scrollToIndex(messages.length - 1, { align: 'end', behavior: 'auto' })
     }
   }, [messages.length, isAtBottom])
 
-  // Reset scroll state when active channel changes
   useEffect(() => {
     setIsAtBottom(true)
     if (messages.length > 0) {
@@ -57,7 +56,7 @@ export default function ChatPane() {
     <div className="flex flex-col flex-1 min-h-0" style={{ background: 'var(--surface-0)' }}>
       {messages.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
             {activeChannelId === 'all'
               ? 'Add a channel in the sidebar to get started.'
               : 'Waiting for messages…'}
@@ -97,15 +96,11 @@ export default function ChatPane() {
         </div>
       )}
 
-      {/* Scroll-to-bottom button */}
+      {/* Scroll-to-bottom bar — Chatterino style: full-width bar, not a floating bubble */}
       {!isAtBottom && (
-        <button
-          onClick={scrollToBottom}
-          className="absolute bottom-16 right-4 z-10 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs shadow-lg transition-all"
-          style={{ background: 'var(--accent)', color: 'white' }}
-        >
-          <ArrowDown size={12} />
-          New messages
+        <button onClick={scrollToBottom} className={styles.scrollToBottom}>
+          <ArrowDown size={11} />
+          More messages below
         </button>
       )}
 

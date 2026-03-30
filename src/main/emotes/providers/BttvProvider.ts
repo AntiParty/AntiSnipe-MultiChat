@@ -1,3 +1,4 @@
+import { net } from 'electron'
 import log from 'electron-log'
 import type { EmoteData } from '../../../shared/types/emote'
 
@@ -32,7 +33,7 @@ export async function fetchBttvChannelEmotes(
   userId: string
 ): Promise<EmoteData[]> {
   try {
-    const resp = await fetch(`${API}/cached/users/${platform}/${userId}`)
+    const resp = await net.fetch(`${API}/cached/users/${platform}/${userId}`)
     if (!resp.ok) return []
     const data = (await resp.json()) as {
       channelEmotes?: BttvEmote[]
@@ -50,7 +51,7 @@ export async function fetchBttvChannelEmotes(
 
 export async function fetchBttvGlobalEmotes(): Promise<EmoteData[]> {
   try {
-    const resp = await fetch(`${API}/cached/emotes/global`)
+    const resp = await net.fetch(`${API}/cached/emotes/global`)
     if (!resp.ok) return []
     const data = (await resp.json()) as BttvEmote[]
     return data.map(normalize)

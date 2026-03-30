@@ -1,3 +1,4 @@
+import { net } from 'electron'
 import log from 'electron-log'
 import { tokenStore } from '../../auth/TokenStore'
 import { youtubeAuth } from '../../auth/YouTubeAuth'
@@ -69,7 +70,7 @@ export class YouTubeApiClient {
       this.addApiKey(url)
 
       const authHeaders = await this.getAuthHeader()
-      const resp = await fetch(url.toString(), {
+      const resp = await net.fetch(url.toString(), {
         headers: authHeaders ?? {}
       })
 
@@ -100,7 +101,7 @@ export class YouTubeApiClient {
       this.addApiKey(url)
 
       const authHeaders = await this.getAuthHeader()
-      const resp = await fetch(url.toString(), { headers: authHeaders ?? {} })
+      const resp = await net.fetch(url.toString(), { headers: authHeaders ?? {} })
       if (!resp.ok) return null
 
       const data = (await resp.json()) as { items?: { id: { videoId: string } }[] }
@@ -127,7 +128,7 @@ export class YouTubeApiClient {
       this.addApiKey(url)
 
       const authHeaders = await this.getAuthHeader()
-      const resp = await fetch(url.toString(), { headers: authHeaders ?? {} })
+      const resp = await net.fetch(url.toString(), { headers: authHeaders ?? {} })
 
       if (resp.status === 403) {
         log.warn('YouTube API 403 — live stream ended or quota exceeded')
@@ -137,7 +138,7 @@ export class YouTubeApiClient {
         // Try refresh
         const newToken = await youtubeAuth.refreshAccessToken()
         if (!newToken) return null
-        const retryResp = await fetch(url.toString(), {
+        const retryResp = await net.fetch(url.toString(), {
           headers: { Authorization: `Bearer ${newToken}` }
         })
         if (!retryResp.ok) return null
@@ -161,7 +162,7 @@ export class YouTubeApiClient {
     if (!accessToken) return false
 
     try {
-      const resp = await fetch(`${YOUTUBE_API_BASE}/liveChat/messages?part=snippet`, {
+      const resp = await net.fetch(`${YOUTUBE_API_BASE}/liveChat/messages?part=snippet`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,

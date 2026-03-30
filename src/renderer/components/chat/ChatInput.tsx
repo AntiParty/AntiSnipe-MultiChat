@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react'
-import { Send } from 'lucide-react'
 import { useStore } from '../../store'
 
 interface ChatInputProps {
@@ -22,7 +21,7 @@ export default function ChatInput({ channelId }: ChatInputProps) {
         : false
 
   const placeholder = isAuthRequired
-    ? `Login required to chat in ${channel?.displayName}`
+    ? `Login to chat in ${channel?.displayName}`
     : `Message ${channel?.displayName}…`
 
   const handleSend = async () => {
@@ -49,8 +48,15 @@ export default function ChatInput({ channelId }: ChatInputProps) {
 
   return (
     <div
-      className="flex items-center gap-2 px-3 py-2 shrink-0"
-      style={{ borderTop: '1px solid var(--border)', background: 'var(--surface-1)' }}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '4px 6px',
+        borderTop: '1px solid var(--border)',
+        background: 'var(--surface-1)',
+        flexShrink: 0
+      }}
     >
       <input
         ref={inputRef}
@@ -60,17 +66,37 @@ export default function ChatInput({ channelId }: ChatInputProps) {
         disabled={isAuthRequired || sending}
         placeholder={placeholder}
         maxLength={500}
-        className="flex-1 text-sm px-3 py-1.5 rounded-md bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] disabled:opacity-50 transition-colors"
-        style={{ userSelect: 'text', WebkitUserSelect: 'text' } as React.CSSProperties}
+        style={{
+          flex: 1,
+          fontSize: '12px',
+          padding: '4px 7px',
+          background: 'var(--surface-2)',
+          border: '1px solid var(--border)',
+          color: 'var(--text-primary)',
+          outline: 'none',
+          opacity: isAuthRequired ? 0.5 : 1,
+          userSelect: 'text',
+          WebkitUserSelect: 'text'
+        } as React.CSSProperties}
+        onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
+        onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
       />
       <button
         onClick={handleSend}
         disabled={!text.trim() || isAuthRequired || sending}
-        className="flex items-center justify-center w-8 h-8 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        style={{ background: text.trim() && !isAuthRequired ? 'var(--accent)' : 'var(--surface-3)', color: 'white' }}
         aria-label="Send"
+        style={{
+          padding: '4px 10px',
+          fontSize: '11px',
+          background: text.trim() && !isAuthRequired ? 'var(--accent)' : 'var(--surface-3)',
+          border: '1px solid var(--border)',
+          color: text.trim() && !isAuthRequired ? '#fff' : 'var(--text-muted)',
+          cursor: text.trim() && !isAuthRequired ? 'pointer' : 'default',
+          opacity: !text.trim() || isAuthRequired || sending ? 0.5 : 1,
+          flexShrink: 0
+        }}
       >
-        <Send size={14} />
+        Send
       </button>
     </div>
   )

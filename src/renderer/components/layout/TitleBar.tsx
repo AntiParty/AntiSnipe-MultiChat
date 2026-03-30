@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Settings, Minus, Square, X } from 'lucide-react'
 import { useStore } from '../../store'
-import Tooltip from '../ui/Tooltip'
 
 export default function TitleBar() {
   const [isMaximized, setIsMaximized] = useState(false)
@@ -21,65 +20,82 @@ export default function TitleBar() {
 
   return (
     <div
-      className="flex items-center h-9 shrink-0 select-none"
+      className="flex items-center shrink-0 select-none"
       style={{
+        height: 'var(--titlebar-height)',
         background: 'var(--titlebar-bg)',
         borderBottom: '1px solid var(--border)',
         WebkitAppRegion: 'drag'
       } as React.CSSProperties}
     >
-      {/* App name / logo */}
-      <div className="px-3 flex items-center gap-2">
-        <span
-          className="text-xs font-semibold tracking-wide"
-          style={{ color: 'var(--text-secondary)' }}
-        >
-          AntiSnipe MultiChat
-        </span>
-      </div>
+      <span
+        className="px-2 text-xs"
+        style={{ color: 'var(--text-muted)', letterSpacing: '0.02em' }}
+      >
+        MultiChat
+      </span>
 
-      {/* Drag region fills remaining space */}
       <div className="flex-1" />
 
-      {/* Non-draggable controls */}
+      {/* Window controls — no-drag zone */}
       <div
         className="flex items-center h-full"
         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       >
-        <Tooltip content="Settings">
-          <button
-            onClick={openSettings}
-            className="flex items-center justify-center w-9 h-9 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] transition-colors"
-            aria-label="Settings"
-          >
-            <Settings size={14} />
-          </button>
-        </Tooltip>
-
-        <button
-          onClick={handleMinimize}
-          className="flex items-center justify-center w-9 h-9 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] transition-colors"
-          aria-label="Minimize"
-        >
-          <Minus size={13} />
-        </button>
-
-        <button
-          onClick={handleMaximize}
-          className="flex items-center justify-center w-9 h-9 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] transition-colors"
-          aria-label={isMaximized ? 'Restore' : 'Maximize'}
-        >
-          <Square size={11} />
-        </button>
-
-        <button
-          onClick={handleClose}
-          className="flex items-center justify-center w-9 h-9 text-[var(--text-secondary)] hover:text-white hover:bg-red-600 transition-colors"
-          aria-label="Close"
-        >
-          <X size={14} />
-        </button>
+        <TitleBtn onClick={openSettings} label="Settings">
+          <Settings size={12} />
+        </TitleBtn>
+        <TitleBtn onClick={handleMinimize} label="Minimize">
+          <Minus size={12} />
+        </TitleBtn>
+        <TitleBtn onClick={handleMaximize} label={isMaximized ? 'Restore' : 'Maximize'}>
+          <Square size={10} />
+        </TitleBtn>
+        <TitleBtn onClick={handleClose} label="Close" danger>
+          <X size={12} />
+        </TitleBtn>
       </div>
     </div>
+  )
+}
+
+function TitleBtn({
+  onClick,
+  label,
+  danger,
+  children
+}: {
+  onClick: () => void
+  label: string
+  danger?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className="flex items-center justify-center h-full transition-colors"
+      style={{
+        width: '32px',
+        color: 'var(--text-muted)',
+        background: 'transparent',
+        border: 'none'
+      }}
+      onMouseEnter={e => {
+        ;(e.currentTarget as HTMLButtonElement).style.background = danger
+          ? '#c42b2b'
+          : 'var(--surface-3)'
+        ;(e.currentTarget as HTMLButtonElement).style.color = danger
+          ? '#ffffff'
+          : 'var(--text-primary)'
+      }}
+      onMouseLeave={e => {
+        ;(e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+        ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'
+      }}
+    >
+      {children}
+    </button>
   )
 }

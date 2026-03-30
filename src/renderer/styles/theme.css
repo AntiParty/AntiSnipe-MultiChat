@@ -1,74 +1,92 @@
-/* Dark theme (default) */
+/* Dark theme — Chatterino-faithful neutral grays */
 :root,
 .dark {
-  --surface-0: #0f0f17;
-  --surface-1: #16161f;
-  --surface-2: #1e1e2a;
-  --surface-3: #2a2a38;
-  --surface-4: #36364a;
+  --surface-0: #0d0d0d;
+  --surface-1: #1a1a1a;
+  --surface-2: #222222;
+  --surface-3: #2c2c2c;
+  --surface-4: #383838;
 
-  --text-primary: #e8e8f0;
-  --text-secondary: #9898b0;
-  --text-muted: #5a5a78;
+  --text-primary: #d9d9d9;
+  --text-secondary: #909090;
+  --text-muted: #5a5a5a;
 
-  --accent: #7c6af5;
-  --accent-hover: #9080ff;
-  --accent-subtle: rgba(124, 106, 245, 0.15);
+  /* Chatterino uses a muted blue link color, not a vivid accent */
+  --accent: #68a9de;
+  --accent-hover: #89bde8;
+  --accent-subtle: rgba(104, 169, 222, 0.12);
 
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.15);
+  --border: #2c2c2c;
+  --border-hover: #404040;
 
-  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
-  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb: #3a3a3a;
+  --scrollbar-thumb-hover: #505050;
 
-  --mention-bg: rgba(255, 200, 100, 0.12);
-  --mention-border: rgba(255, 200, 100, 0.5);
-  --highlight-bg: rgba(124, 106, 245, 0.12);
+  /* Chatterino mention = warm yellow tint */
+  --mention-bg: rgba(255, 210, 60, 0.14);
+  --mention-border: #c8a800;
+  --highlight-bg: rgba(104, 169, 222, 0.1);
 
-  --danger: #f87272;
-  --success: #4ade80;
-  --warning: #fbbf24;
+  /* Alternating message rows — very subtle */
+  --msg-alt-bg: rgba(255, 255, 255, 0.022);
+  --msg-hover-bg: rgba(255, 255, 255, 0.055);
+
+  --danger: #e05252;
+  --success: #5cb85c;
+  --warning: #e8a020;
 
   /* Platform colors */
   --twitch: #9147ff;
-  --youtube: #ff0000;
+  --youtube: #cc0000;
   --kick: #53fc18;
 
-  /* Titlebar */
-  --titlebar-bg: #0a0a12;
-  --titlebar-height: 36px;
+  /* Titlebar — matches Chatterino's native-ish header */
+  --titlebar-bg: #111111;
+  --titlebar-height: 28px;
 
-  /* Sidebar */
-  --sidebar-width: 200px;
-  --sidebar-bg: #0f0f17;
+  /* Sidebar / channel panel */
+  --sidebar-width: 180px;
+  --sidebar-bg: #111111;
+
+  /* Link color */
+  --link: #68a9de;
 }
 
-/* Light theme */
+/* Light theme — Chatterino light palette */
 .light {
-  --surface-0: #f5f5f7;
-  --surface-1: #ffffff;
-  --surface-2: #ededf0;
-  --surface-3: #e0e0e5;
-  --surface-4: #d0d0d8;
+  --surface-0: #ffffff;
+  --surface-1: #f0f0f0;
+  --surface-2: #e4e4e4;
+  --surface-3: #d4d4d4;
+  --surface-4: #c4c4c4;
 
-  --text-primary: #111118;
-  --text-secondary: #555566;
-  --text-muted: #888899;
+  --text-primary: #1a1a1a;
+  --text-secondary: #555555;
+  --text-muted: #888888;
 
-  --accent: #5b4de0;
-  --accent-hover: #4a3ec0;
-  --accent-subtle: rgba(91, 77, 224, 0.1);
+  --accent: #2070c0;
+  --accent-hover: #1860a8;
+  --accent-subtle: rgba(32, 112, 192, 0.1);
 
-  --border: rgba(0, 0, 0, 0.08);
-  --border-hover: rgba(0, 0, 0, 0.15);
+  --border: #d0d0d0;
+  --border-hover: #b0b0b0;
 
-  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
-  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
+  --scrollbar-thumb: #c0c0c0;
+  --scrollbar-thumb-hover: #a0a0a0;
 
-  --mention-bg: rgba(255, 165, 0, 0.1);
-  --mention-border: rgba(255, 165, 0, 0.5);
-  --highlight-bg: rgba(91, 77, 224, 0.1);
+  --mention-bg: rgba(255, 200, 0, 0.18);
+  --mention-border: #b89000;
+  --highlight-bg: rgba(32, 112, 192, 0.1);
 
-  --titlebar-bg: #e8e8ed;
-  --sidebar-bg: #f5f5f7;
+  --msg-alt-bg: rgba(0, 0, 0, 0.03);
+  --msg-hover-bg: rgba(0, 0, 0, 0.06);
+
+  --danger: #cc2222;
+  --success: #228822;
+  --warning: #c07000;
+
+  --titlebar-bg: #e0e0e0;
+  --sidebar-bg: #e8e8e8;
+
+  --link: #2070c0;
 }

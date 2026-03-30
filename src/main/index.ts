@@ -7,9 +7,7 @@ import { broadcaster } from './ipc/broadcaster'
 import { platformManager } from './services/PlatformManager'
 import { emoteCacheManager } from './emotes/EmoteCacheManager'
 import { autoUpdaterManager } from './updater/AutoUpdater'
-import { twitchAuth } from './auth/TwitchAuth'
-import { youtubeAuth } from './auth/YouTubeAuth'
-import { CUSTOM_PROTOCOL } from '../shared/constants'
+
 
 log.initialize({ preload: true })
 
@@ -20,15 +18,6 @@ const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
   app.quit()
   process.exit(0)
-}
-
-// Register custom protocol for OAuth callbacks
-if (process.defaultApp) {
-  if (process.argv.length >= 2) {
-    app.setAsDefaultProtocolClient(CUSTOM_PROTOCOL, process.execPath, [process.argv[1]])
-  }
-} else {
-  app.setAsDefaultProtocolClient(CUSTOM_PROTOCOL)
 }
 
 let mainWindow: BrowserWindow | null = null
@@ -114,29 +103,13 @@ app.whenReady().then(async () => {
   })
 })
 
-// Handle OAuth callback on Windows (second-instance)
-app.on('second-instance', (_event, argv) => {
+// Restore window if a second instance is launched
+app.on('second-instance', () => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore()
     mainWindow.focus()
   }
-  const url = argv.find(arg => arg.startsWith(`${CUSTOM_PROTOCOL}://`))
-  if (url) handleProtocolUrl(url)
 })
-
-// Handle OAuth callback on macOS
-app.on('open-url', (_event, url) => {
-  handleProtocolUrl(url)
-})
-
-function handleProtocolUrl(url: string): void {
-  log.info('OAuth protocol URL received:', url)
-  if (url.includes('/auth/twitch')) {
-    twitchAuth.handleCallback(url)
-  } else if (url.includes('/auth/youtube')) {
-    youtubeAuth.handleCallback(url)
-  }
-}
 
 app.on('window-all-closed', () => {
   emoteCacheManager.flushToDisk()

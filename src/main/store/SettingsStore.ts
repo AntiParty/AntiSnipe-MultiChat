@@ -14,6 +14,7 @@ const channelConfigSchema = z.object({
 const settingsSchema = z.object({
   channels: z.array(channelConfigSchema).default([]),
   twitchClientId: z.string().default(''),
+  twitchClientSecret: z.string().default(''),
   googleClientId: z.string().default(''),
   youtubeApiKey: z.string().default(''),
   theme: z.enum(['dark', 'light', 'system']).default('dark'),
@@ -52,6 +53,7 @@ class SettingsStore {
     return {
       channels: this.store.get('channels', DEFAULT_SETTINGS.channels),
       twitchClientId: this.store.get('twitchClientId', ''),
+      twitchClientSecret: this.store.get('twitchClientSecret', ''),
       googleClientId: this.store.get('googleClientId', ''),
       youtubeApiKey: this.store.get('youtubeApiKey', ''),
       theme: this.store.get('theme', 'dark'),

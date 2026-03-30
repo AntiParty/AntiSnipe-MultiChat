@@ -1,3 +1,4 @@
+import { net } from 'electron'
 import log from 'electron-log'
 import type { EmoteData } from '../../../shared/types/emote'
 
@@ -57,7 +58,7 @@ export async function fetchSevenTvChannelEmotes(
   userId: string
 ): Promise<EmoteData[]> {
   try {
-    const resp = await fetch(`${BASE}/users/${platform}/${userId}`)
+    const resp = await net.fetch(`${BASE}/users/${platform}/${userId}`)
     if (!resp.ok) return []
     const data = (await resp.json()) as { emote_set?: SevenTvEmoteSet }
     return normalizeEmotes(data.emote_set?.emotes ?? [])
@@ -69,7 +70,7 @@ export async function fetchSevenTvChannelEmotes(
 
 export async function fetchSevenTvGlobalEmotes(): Promise<EmoteData[]> {
   try {
-    const resp = await fetch(`${BASE}/emote-sets/global`)
+    const resp = await net.fetch(`${BASE}/emote-sets/global`)
     if (!resp.ok) return []
     const data = (await resp.json()) as SevenTvEmoteSet
     return normalizeEmotes(data.emotes ?? [])

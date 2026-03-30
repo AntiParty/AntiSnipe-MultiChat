@@ -4,6 +4,7 @@ import { tokenStore } from '../../auth/TokenStore'
 import { twitchAuth } from '../../auth/TwitchAuth'
 import { settingsStore } from '../../store/SettingsStore'
 import { twitchBadgeResolver } from './TwitchBadgeResolver'
+
 import { parseIrcLine, nickFromPrefix } from './TwitchIrcParser'
 import {
   normalizeTwitchMessage,
@@ -24,6 +25,7 @@ import type { ConnectionStatus } from '../../../shared/types/channel'
 type OnMessage = (msg: NormalizedMessage) => void
 type OnDelete = (event: DeleteMessageEvent) => void
 type OnStatus = (status: ConnectionStatus, error?: string) => void
+type OnRoomState = (channelId: string, roomId: string) => void
 
 interface TwitchChannelHandle {
   channelId: string
@@ -44,11 +46,13 @@ export class TwitchService {
   private onMessage: OnMessage
   private onDelete: OnDelete
   private onStatus: OnStatus
+  private onRoomState: OnRoomState
 
-  constructor(onMessage: OnMessage, onDelete: OnDelete, onStatus: OnStatus) {
+  constructor(onMessage: OnMessage, onDelete: OnDelete, onStatus: OnStatus, onRoomState: OnRoomState) {
     this.onMessage = onMessage
     this.onDelete = onDelete
     this.onStatus = onStatus
+    this.onRoomState = onRoomState
   }
 
   async joinChannel(handle: TwitchChannelHandle): Promise<void> {
@@ -229,6 +233,20 @@ export class TwitchService {
         break
       }
 
+      case 'ROOMSTATE': {
+        // room-id is the broadcaster's numeric Twitch user ID — free, no OAuth needed
+        const channel = msg.params[0]?.slice(1)
+        const handle = this.findHandleBySlug(channel)
+        if (!handle) break
+        const roomId = msg.tags['room-id']
+        if (roomId && roomId !== handle.broadcasterId) {
+          handle.broadcasterId = roomId
+          this.loadBadges(handle).catch(log.error)
+          this.onRoomState(handle.channelId, roomId)
+        }
+        break
+      }
+
       case 'NOTICE':
         log.info('Twitch NOTICE:', msg.params.join(' '))
         break
@@ -244,13 +262,13 @@ export class TwitchService {
 
   private async loadBadges(handle: TwitchChannelHandle): Promise<void> {
     const accessToken = tokenStore.getAccessToken('twitch')
-    if (!accessToken || !handle.broadcasterId) return
-    const settings = settingsStore.get()
-    await twitchBadgeResolver.loadChannelBadges(
-      handle.broadcasterId,
-      settings.twitchClientId,
-      accessToken
-    )
+    if (!accessToken) return
+    const { twitchClientId: clientId } = settingsStore.get()
+    if (!clientId) return
+    await twitchBadgeResolver.loadGlobalBadgesIfNeeded(clientId, accessToken)
+    if (handle.broadcasterId) {
+      await twitchBadgeResolver.loadChannelBadges(handle.broadcasterId, clientId, accessToken)
+    }
   }
 
   private startPingInterval(): void {

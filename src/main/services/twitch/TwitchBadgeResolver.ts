@@ -1,3 +1,4 @@
+import { net } from 'electron'
 import log from 'electron-log'
 import { TWITCH_HELIX_BASE } from '../../../shared/constants'
 import type { BadgeInfo } from '../../../shared/types/message'
@@ -8,7 +9,6 @@ interface TwitchBadgeVersion {
   image_url_2x: string
   image_url_4x: string
   title: string
-  description: string
 }
 
 interface TwitchBadgeSet {
@@ -21,46 +21,7 @@ type BadgeCache = Map<string, Map<string, TwitchBadgeVersion>>
 class TwitchBadgeResolver {
   private globalBadges: BadgeCache = new Map()
   private channelBadges: Map<string, BadgeCache> = new Map()
-
-  async loadGlobalBadges(clientId: string, accessToken: string): Promise<void> {
-    try {
-      const resp = await fetch(`${TWITCH_HELIX_BASE}/chat/badges/global`, {
-        headers: {
-          'Client-Id': clientId,
-          Authorization: `Bearer ${accessToken}`
-        }
-      })
-      if (!resp.ok) return
-      const data = (await resp.json()) as { data: TwitchBadgeSet[] }
-      this.globalBadges = this.indexBadges(data.data)
-      log.info(`Loaded ${this.globalBadges.size} global Twitch badge sets`)
-    } catch (err) {
-      log.error('Failed to load global Twitch badges:', err)
-    }
-  }
-
-  async loadChannelBadges(
-    broadcasterId: string,
-    clientId: string,
-    accessToken: string
-  ): Promise<void> {
-    try {
-      const resp = await fetch(
-        `${TWITCH_HELIX_BASE}/chat/badges?broadcaster_id=${broadcasterId}`,
-        {
-          headers: {
-            'Client-Id': clientId,
-            Authorization: `Bearer ${accessToken}`
-          }
-        }
-      )
-      if (!resp.ok) return
-      const data = (await resp.json()) as { data: TwitchBadgeSet[] }
-      this.channelBadges.set(broadcasterId, this.indexBadges(data.data))
-    } catch (err) {
-      log.error('Failed to load channel Twitch badges:', err)
-    }
-  }
+  private globalLoaded = false
 
   private indexBadges(sets: TwitchBadgeSet[]): BadgeCache {
     const cache: BadgeCache = new Map()
@@ -74,6 +35,41 @@ class TwitchBadgeResolver {
     return cache
   }
 
+  async loadGlobalBadgesIfNeeded(clientId: string, accessToken: string): Promise<void> {
+    if (this.globalLoaded) return
+    try {
+      const resp = await net.fetch(`${TWITCH_HELIX_BASE}/chat/badges/global`, {
+        headers: { 'Client-Id': clientId, Authorization: `Bearer ${accessToken}` }
+      })
+      if (!resp.ok) {
+        log.warn(`Global badges fetch returned ${resp.status}`)
+        return
+      }
+      const data = (await resp.json()) as { data: TwitchBadgeSet[] }
+      this.globalBadges = this.indexBadges(data.data)
+      this.globalLoaded = true
+      log.info(`Loaded ${this.globalBadges.size} global Twitch badge sets`)
+    } catch (err) {
+      log.error('Failed to load global Twitch badges:', err)
+    }
+  }
+
+  async loadChannelBadges(broadcasterId: string, clientId: string, accessToken: string): Promise<void> {
+    if (this.channelBadges.has(broadcasterId)) return
+    try {
+      const resp = await net.fetch(
+        `${TWITCH_HELIX_BASE}/chat/badges?broadcaster_id=${broadcasterId}`,
+        { headers: { 'Client-Id': clientId, Authorization: `Bearer ${accessToken}` } }
+      )
+      if (!resp.ok) return
+      const data = (await resp.json()) as { data: TwitchBadgeSet[] }
+      this.channelBadges.set(broadcasterId, this.indexBadges(data.data))
+      log.info(`Loaded channel badges for broadcaster ${broadcasterId}`)
+    } catch (err) {
+      log.error('Failed to load channel Twitch badges:', err)
+    }
+  }
+
   resolve(badgeTag: string, broadcasterId?: string): BadgeInfo[] {
     if (!badgeTag) return []
     const channelCache = broadcasterId ? this.channelBadges.get(broadcasterId) : undefined
@@ -85,7 +81,6 @@ class TwitchBadgeResolver {
       const setId = part.slice(0, slashIdx)
       const versionId = part.slice(slashIdx + 1)
 
-      // Check channel badges first, then global
       const version =
         channelCache?.get(setId)?.get(versionId) ?? this.globalBadges.get(setId)?.get(versionId)
 

@@ -1,3 +1,4 @@
+import { net } from 'electron'
 import log from 'electron-log'
 import { KICK_API_BASE } from '../../../shared/constants'
 
@@ -14,21 +15,25 @@ interface KickChannel {
   }
 }
 
-const BROWSER_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+// electron.net.fetch uses Chromium's networking stack which handles Cloudflare correctly.
+// Node.js fetch gets blocked; this does not.
+async function kickFetch(url: string): Promise<Response> {
+  return net.fetch(url, {
+    headers: {
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Referer': 'https://kick.com/',
+      'Origin': 'https://kick.com/'
+    }
+  })
+}
 
 export class KickApiClient {
   private chatroomCache = new Map<string, number>()
 
   async getChannel(slug: string): Promise<KickChannel | null> {
     try {
-      const resp = await fetch(`${KICK_API_BASE}/channels/${slug}`, {
-        headers: {
-          'User-Agent': BROWSER_UA,
-          Accept: 'application/json',
-          'Accept-Language': 'en-US,en;q=0.9'
-        }
-      })
+      const resp = await kickFetch(`${KICK_API_BASE}/channels/${slug}`)
       if (!resp.ok) {
         log.error(`Kick API ${slug} returned ${resp.status}`)
         return null
@@ -55,15 +60,17 @@ export class KickApiClient {
       return false
     }
     try {
-      const resp = await fetch(`${KICK_API_BASE}/messages`, {
+      const chatroomId = await this.getChatroomId(slug)
+      if (!chatroomId) return false
+      const resp = await net.fetch(`${KICK_API_BASE}/messages`, {
         method: 'POST',
         headers: {
-          'User-Agent': BROWSER_UA,
           'Content-Type': 'application/json',
-          Cookie: sessionCookie,
-          'X-Socket-Id': ''
+          'Cookie': sessionCookie,
+          'Referer': 'https://kick.com/',
+          'Origin': 'https://kick.com/'
         },
-        body: JSON.stringify({ chatroom_id: await this.getChatroomId(slug), content: message, type: 'message' })
+        body: JSON.stringify({ chatroom_id: chatroomId, content: message, type: 'message' })
       })
       return resp.ok
     } catch {

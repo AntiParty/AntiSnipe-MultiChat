@@ -18,9 +18,10 @@ class PlatformManager {
     this.twitchService = new TwitchService(
       msg => this.handleMessage(msg),
       event => this.handleDelete(event),
-      (status, error) => {
-        // TwitchService uses a single connection for all channels
-        // status updates are broadcast per channel from TwitchService
+      (_status, _error) => {},
+      (channelId, roomId) => {
+        // ROOMSTATE gives us the broadcaster's numeric user ID for free — use it for emotes
+        emoteCacheManager.fetchForChannel({ channelId, twitchUserId: roomId }).catch(log.error)
       }
     )
 
@@ -54,17 +55,8 @@ class PlatformManager {
 
     try {
       if (platform === 'twitch') {
-        // Fetch emotes in parallel with connecting
-        emoteCacheManager.fetchForChannel({
-          channelId,
-          twitchUserId: slug // Will be resolved to user ID by badge resolver
-        }).catch(log.error)
-
-        await this.twitchService.joinChannel({
-          channelId,
-          slug,
-          displayName
-        })
+        // broadcasterId and emote fetch happen automatically via ROOMSTATE after join
+        await this.twitchService.joinChannel({ channelId, slug, displayName })
         this.setConnectionState(channelId, 'connected')
       } else if (platform === 'youtube') {
         await youtubeService.joinChannel(

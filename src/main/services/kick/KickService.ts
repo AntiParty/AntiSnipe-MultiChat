@@ -1,5 +1,12 @@
 import Pusher from 'pusher-js'
+import WebSocket from 'ws'
 import log from 'electron-log'
+
+// pusher-js uses the browser WebSocket API which doesn't exist in Electron's main process.
+// Polyfill it with the 'ws' package before any Pusher instance is created.
+if (typeof (global as any).WebSocket === 'undefined') {
+  ;(global as any).WebSocket = WebSocket
+}
 import { kickApiClient } from './KickApiClient'
 import { normalizeKickMessage } from './KickMessageNormalizer'
 import { settingsStore } from '../../store/SettingsStore'

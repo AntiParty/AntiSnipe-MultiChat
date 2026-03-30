@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Download } from 'lucide-react'
 import { useStore } from '../../store'
 import { RENDERER_CHANNELS } from '@shared/types/ipc'
 
@@ -24,30 +23,38 @@ export default function StatusBar() {
 
   return (
     <div
-      className="flex items-center justify-between px-3 h-6 shrink-0 text-xs"
       style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 8px',
+        height: '18px',
+        flexShrink: 0,
         background: 'var(--titlebar-bg)',
         borderTop: '1px solid var(--border)',
-        color: 'var(--text-muted)'
+        color: 'var(--text-muted)',
+        fontSize: '10px'
       }}
     >
       <span>
-        {connected > 0 ? `${connected} connected` : 'No connections'}
+        {connected > 0 ? `${connected}/${channels.length} connected` : channels.length > 0 ? 'Connecting…' : 'No channels'}
       </span>
 
       {updateVersion && (
         <button
           onClick={() => {
-            if (downloaded) {
-              // quitAndInstall via IPC — add handler if needed
-              console.log('Install update')
-            }
+            if (downloaded) console.log('Install update')
           }}
-          className="flex items-center gap-1 text-xs hover:text-[var(--text-primary)] transition-colors"
-          style={{ color: downloaded ? 'var(--success)' : 'var(--accent)' }}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: '10px',
+            cursor: downloaded ? 'pointer' : 'default',
+            color: downloaded ? 'var(--success)' : 'var(--accent)',
+            padding: 0
+          }}
         >
-          <Download size={10} />
-          {downloaded ? `v${updateVersion} ready — click to restart` : `v${updateVersion} downloading…`}
+          {downloaded ? `v${updateVersion} ready — restart to update` : `Downloading v${updateVersion}…`}
         </button>
       )}
     </div>

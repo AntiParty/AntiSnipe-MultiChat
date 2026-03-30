@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { useStore } from './store'
 import { initIpcSync } from './store/middleware/ipcSync'
 import TitleBar from './components/layout/TitleBar'
-import Sidebar from './components/layout/Sidebar'
 import StatusBar from './components/layout/StatusBar'
 import ChatPane from './components/chat/ChatPane'
 import ChatTabs from './components/chat/ChatTabs'
@@ -44,14 +43,8 @@ export default function App() {
     >
       <TitleBar />
 
-      <div className="flex flex-1 min-h-0">
-        <Sidebar />
-
-        <main className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          <ChatTabs />
-          <ChatPane />
-        </main>
-      </div>
+      <ChatTabs />
+      <ChatPane />
 
       <StatusBar />
       <SettingsModal />

@@ -21,6 +21,7 @@ export interface AppSettings {
 
   // Auth / API keys (sensitive, stored in separate encrypted store)
   twitchClientId: string
+  twitchClientSecret: string
   googleClientId: string
   youtubeApiKey: string  // fallback if no OAuth
 
@@ -49,6 +50,7 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   channels: [],
   twitchClientId: '',
+  twitchClientSecret: '',
   googleClientId: '',
   youtubeApiKey: '',
   theme: 'dark',

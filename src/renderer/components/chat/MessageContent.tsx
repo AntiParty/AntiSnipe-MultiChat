@@ -8,7 +8,7 @@ interface MessageContentProps {
 
 export default function MessageContent({ parts }: MessageContentProps) {
   return (
-    <span className={`${styles.messageText} select-text`}>
+    <span className="select-text">
       {parts.map((part, i) => {
         switch (part.type) {
           case 'text':

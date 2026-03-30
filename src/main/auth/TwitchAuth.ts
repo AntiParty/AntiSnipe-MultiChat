@@ -1,60 +1,58 @@
-import { shell } from 'electron'
+import { shell, net } from 'electron'
 import crypto from 'crypto'
 import log from 'electron-log'
 import { settingsStore } from '../store/SettingsStore'
 import { tokenStore } from './TokenStore'
 import { broadcaster } from '../ipc/broadcaster'
+import { startLocalAuthServer, TWITCH_REDIRECT_URI } from './LocalAuthServer'
 import { RENDERER_CHANNELS } from '../../shared/types/ipc'
-import { TWITCH_AUTH_BASE, TWITCH_HELIX_BASE, CUSTOM_PROTOCOL } from '../../shared/constants'
+import { TWITCH_AUTH_BASE, TWITCH_HELIX_BASE } from '../../shared/constants'
 
 interface PendingAuth {
-  codeVerifier: string
   state: string
 }
 
 class TwitchAuth {
   private pending: PendingAuth | null = null
 
-  private generateCodeVerifier(): string {
-    return crypto.randomBytes(64).toString('base64url')
-  }
-
-  private async generateCodeChallenge(verifier: string): Promise<string> {
-    const hash = crypto.createHash('sha256').update(verifier).digest()
-    return hash.toString('base64url')
-  }
-
   async startFlow(): Promise<void> {
     const settings = settingsStore.get()
     const clientId = settings.twitchClientId
-    if (!clientId) {
+    const clientSecret = settings.twitchClientSecret
+
+    if (!clientId || !clientSecret) {
       broadcaster.send(RENDERER_CHANNELS.PLATFORM_ERROR, {
         channelId: '',
-        code: 'NO_CLIENT_ID',
-        message: 'No Twitch Client ID configured. Add it in Settings → Auth.'
+        code: 'NO_CREDENTIALS',
+        message: 'Enter both Client ID and Client Secret in Settings → Auth before connecting.'
       })
       return
     }
 
-    const codeVerifier = this.generateCodeVerifier()
-    const codeChallenge = await this.generateCodeChallenge(codeVerifier)
     const state = crypto.randomBytes(16).toString('hex')
-
-    this.pending = { codeVerifier, state }
+    this.pending = { state }
 
     const params = new URLSearchParams({
       client_id: clientId,
-      redirect_uri: `${CUSTOM_PROTOCOL}://auth/twitch`,
+      redirect_uri: TWITCH_REDIRECT_URI,
       response_type: 'code',
       scope: 'chat:read chat:edit user:read:email',
-      code_challenge: codeChallenge,
-      code_challenge_method: 'S256',
       state
     })
 
-    const url = `${TWITCH_AUTH_BASE}/authorize?${params}`
     log.info('Opening Twitch OAuth URL')
-    await shell.openExternal(url)
+    await shell.openExternal(`${TWITCH_AUTH_BASE}/authorize?${params}`)
+
+    startLocalAuthServer('twitch')
+      .then(url => this.handleCallback(url))
+      .catch(err => {
+        log.error('Twitch OAuth server error:', err)
+        this.pending = null
+        broadcaster.send(RENDERER_CHANNELS.AUTH_STATE_CHANGED, {
+          platform: 'twitch',
+          state: { status: 'error', error: String(err) }
+        })
+      })
   }
 
   async handleCallback(url: string): Promise<void> {
@@ -72,17 +70,13 @@ class TwitchAuth {
       if (error) {
         throw new Error(`OAuth error: ${error} — ${parsed.searchParams.get('error_description')}`)
       }
-
       if (state !== this.pending.state) {
         throw new Error('OAuth state mismatch — possible CSRF attack')
       }
-
       if (!code) throw new Error('No authorization code received')
 
-      const { codeVerifier } = this.pending
       this.pending = null
-
-      await this.exchangeCode(code, codeVerifier)
+      await this.exchangeCode(code)
     } catch (err) {
       log.error('Twitch auth callback error:', err)
       this.pending = null
@@ -93,19 +87,19 @@ class TwitchAuth {
     }
   }
 
-  private async exchangeCode(code: string, codeVerifier: string): Promise<void> {
+  private async exchangeCode(code: string): Promise<void> {
     const settings = settingsStore.get()
-    const clientId = settings.twitchClientId
+    const { twitchClientId: clientId, twitchClientSecret: clientSecret } = settings
 
     const body = new URLSearchParams({
       client_id: clientId,
+      client_secret: clientSecret,
       code,
-      code_verifier: codeVerifier,
       grant_type: 'authorization_code',
-      redirect_uri: `${CUSTOM_PROTOCOL}://auth/twitch`
+      redirect_uri: TWITCH_REDIRECT_URI
     })
 
-    const tokenResp = await fetch(`${TWITCH_AUTH_BASE}/token`, {
+    const tokenResp = await net.fetch(`${TWITCH_AUTH_BASE}/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body.toString()
@@ -122,8 +116,7 @@ class TwitchAuth {
       expires_in?: number
     }
 
-    // Fetch user info
-    const userResp = await fetch(`${TWITCH_HELIX_BASE}/users`, {
+    const userResp = await net.fetch(`${TWITCH_HELIX_BASE}/users`, {
       headers: {
         Authorization: `Bearer ${tokenData.access_token}`,
         'Client-Id': clientId
@@ -158,16 +151,17 @@ class TwitchAuth {
     if (!refreshToken) return null
 
     const settings = settingsStore.get()
-    const clientId = settings.twitchClientId
+    const { twitchClientId: clientId, twitchClientSecret: clientSecret } = settings
 
     try {
       const body = new URLSearchParams({
         client_id: clientId,
+        client_secret: clientSecret,
         grant_type: 'refresh_token',
         refresh_token: refreshToken
       })
 
-      const resp = await fetch(`${TWITCH_AUTH_BASE}/token`, {
+      const resp = await net.fetch(`${TWITCH_AUTH_BASE}/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: body.toString()
