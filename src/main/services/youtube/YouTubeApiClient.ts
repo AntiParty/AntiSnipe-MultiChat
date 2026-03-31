@@ -89,12 +89,53 @@ export class YouTubeApiClient {
     }
   }
 
-  async getChannelLiveChatId(channelHandle: string): Promise<string | null> {
-    // Try to find a live video from the channel
+  private async resolveChannelId(slug: string): Promise<string | null> {
+    // Already a real channel ID
+    if (slug.startsWith('UC')) return slug
+
+    // Try as handle (@name or name)
+    const handle = slug.startsWith('@') ? slug : `@${slug}`
     try {
+      const url = new URL(`${YOUTUBE_API_BASE}/channels`)
+      url.searchParams.set('part', 'id')
+      url.searchParams.set('forHandle', handle)
+      this.addApiKey(url)
+      const authHeaders = await this.getAuthHeader()
+      const resp = await net.fetch(url.toString(), { headers: authHeaders ?? {} })
+      if (resp.ok) {
+        const data = (await resp.json()) as { items?: { id: string }[] }
+        if (data.items?.[0]?.id) return data.items[0].id
+      }
+    } catch { /* fall through */ }
+
+    // Fallback: legacy username lookup
+    try {
+      const url = new URL(`${YOUTUBE_API_BASE}/channels`)
+      url.searchParams.set('part', 'id')
+      url.searchParams.set('forUsername', slug.replace(/^@/, ''))
+      this.addApiKey(url)
+      const authHeaders = await this.getAuthHeader()
+      const resp = await net.fetch(url.toString(), { headers: authHeaders ?? {} })
+      if (resp.ok) {
+        const data = (await resp.json()) as { items?: { id: string }[] }
+        if (data.items?.[0]?.id) return data.items[0].id
+      }
+    } catch { /* fall through */ }
+
+    return null
+  }
+
+  async getChannelLiveChatId(slug: string): Promise<string | null> {
+    try {
+      const channelId = await this.resolveChannelId(slug)
+      if (!channelId) {
+        log.warn(`Could not resolve YouTube channel ID for slug: ${slug}`)
+        return null
+      }
+
       const url = new URL(`${YOUTUBE_API_BASE}/search`)
       url.searchParams.set('part', 'id')
-      url.searchParams.set('channelId', channelHandle)
+      url.searchParams.set('channelId', channelId)
       url.searchParams.set('type', 'video')
       url.searchParams.set('eventType', 'live')
       url.searchParams.set('maxResults', '1')

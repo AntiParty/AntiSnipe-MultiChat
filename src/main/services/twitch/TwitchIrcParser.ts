@@ -35,7 +35,18 @@ export function parseIrcLine(line: string): ParsedIrcMessage | null {
       if (eqIdx === -1) {
         tags[part] = ''
       } else {
-        tags[part.slice(0, eqIdx)] = part.slice(eqIdx + 1)
+        // Unescape IRC tag value escapes in a single pass (order matters)
+        const raw = part.slice(eqIdx + 1)
+        tags[part.slice(0, eqIdx)] = raw.replace(/\\(.)/g, (_, c: string) => {
+          switch (c) {
+            case 's': return ' '
+            case ':': return ';'
+            case '\\': return '\\'
+            case 'r': return '\r'
+            case 'n': return '\n'
+            default: return c
+          }
+        })
       }
     }
     pos = tagEnd + 1

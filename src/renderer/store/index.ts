@@ -66,18 +66,17 @@ function buildChatSlice(set: SetState): ChatSlice {
             state.unreadCounts[channelId] = (state.unreadCounts[channelId] ?? 0) + 1
           }
           // Track chatters for @ autocomplete (skip system messages)
-          if (msg.authorName && msg.messageType === 'chat' || msg.messageType === 'action') {
+          if (msg.authorName && (msg.messageType === 'chat' || msg.messageType === 'action')) {
             if (!state.chattersByChannel[channelId]) {
-              state.chattersByChannel[channelId] = new Map<string, ChatterInfo>()
+              state.chattersByChannel[channelId] = []
             }
-            const map = state.chattersByChannel[channelId]
-            // Move to end (most recent) by deleting then re-adding
-            map.delete(msg.authorName)
-            map.set(msg.authorName, { login: msg.authorName, displayName: msg.authorDisplayName })
+            const arr = state.chattersByChannel[channelId]
+            // Move to end (most recent) by removing old entry then appending
+            const idx = arr.findIndex(c => c.login === msg.authorName)
+            if (idx !== -1) arr.splice(idx, 1)
+            arr.push({ login: msg.authorName, displayName: msg.authorDisplayName })
             // Evict oldest entry if over cap
-            if (map.size > MAX_CHATTERS) {
-              map.delete(map.keys().next().value!)
-            }
+            if (arr.length > MAX_CHATTERS) arr.splice(0, 1)
           }
         }
       }),

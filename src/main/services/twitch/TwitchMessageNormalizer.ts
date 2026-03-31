@@ -205,7 +205,7 @@ export function normalizeUserNotice(
   const tags = msg.tags
   const msgId = tags['id'] || `${Date.now()}-${Math.random()}`
   const subType = tags['msg-id']
-  const systemMsg = tags['system-msg']?.replace(/\\s/g, ' ') || ''
+  const systemMsg = tags['system-msg'] || ''
 
   let messageType: MessageType = 'system'
   if (subType === 'sub' || subType === 'resub') messageType = subType as MessageType

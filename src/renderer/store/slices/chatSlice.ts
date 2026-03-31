@@ -12,8 +12,8 @@ export interface ChatSlice {
   messagesByChannel: Record<string, NormalizedMessage[]>
   emotesByChannel: Record<string, Record<string, EmoteData>>
   selfModByChannel: Record<string, boolean>
-  // Recent chatters per channel: login → ChatterInfo (capped, insertion-ordered via Map)
-  chattersByChannel: Record<string, Map<string, ChatterInfo>>
+  // Recent chatters per channel: ordered array, newest at end, capped at MAX_CHATTERS
+  chattersByChannel: Record<string, ChatterInfo[]>
   activeChannelId: string
   unreadCounts: Record<string, number>
 

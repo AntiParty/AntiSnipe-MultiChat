@@ -113,7 +113,7 @@ export default function SettingsAuth() {
             <li>Application type: <strong>Desktop app</strong></li>
             <li>Under <strong>Authorized redirect URIs</strong> add: <code style={{ background: 'var(--surface-3)', padding: '1px 4px' }}>http://localhost:47891/auth/youtube</code></li>
             <li>Enable <strong>YouTube Data API v3</strong> in the API Library</li>
-            <li>Copy the <strong>Client ID</strong></li>
+            <li>Copy both the <strong>Client ID</strong> and <strong>Client Secret</strong></li>
           </ol>
         </div>
 
@@ -124,6 +124,18 @@ export default function SettingsAuth() {
             onChange={e => save({ googleClientId: e.target.value })}
             placeholder="Paste your Google Client ID here"
           />
+          <Input
+            label="Google Client Secret"
+            type="password"
+            value={settings.googleClientSecret}
+            onChange={e => save({ googleClientSecret: e.target.value })}
+            placeholder="Paste your Client Secret here"
+          />
+          {!settings.googleClientSecret && settings.googleClientId && (
+            <p style={{ fontSize: '11px', color: 'var(--warning, #f59e0b)', margin: '-4px 0 0' }}>
+              Client Secret is required — Google will reject the token exchange without it.
+            </p>
+          )}
           <Input
             label="YouTube API Key (optional — for read-only without OAuth)"
             value={settings.youtubeApiKey}

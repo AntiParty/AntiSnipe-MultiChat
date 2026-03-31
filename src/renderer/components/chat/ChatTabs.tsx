@@ -18,16 +18,22 @@ const PLATFORM_LABELS: Record<Platform, string> = {
   kick: 'Kick'
 }
 
-const PLATFORM_PREFIXES: Record<Platform, string> = {
-  twitch: 'twitch.tv/',
-  youtube: 'youtube.com/',
-  kick: 'kick.com/'
+const PLATFORM_ICONS: Record<Platform, React.ReactNode> = {
+  twitch: <TwitchLogo size={14} />,
+  youtube: <YouTubeLogo size={14} />,
+  kick: <KickLogo size={14} />
 }
 
-const PLATFORM_ICONS: Record<Platform, React.ReactNode> = {
-  twitch: <TwitchLogo size={12} />,
-  youtube: <YouTubeLogo size={12} />,
-  kick: <KickLogo size={12} />
+const PLATFORM_HINTS: Record<Platform, React.ReactNode> = {
+  twitch: <>Enter your channel name (e.g. <code style={{ background: 'var(--surface-3)', padding: '1px 4px', borderRadius: 2 }}>xqc</code>)</>,
+  youtube: <>Paste your stream's video ID or URL. Start your stream first, then grab the ID from the URL — e.g. <code style={{ background: 'var(--surface-3)', padding: '1px 4px', borderRadius: 2 }}>TlbHFJewzm4</code></>,
+  kick: <>Enter your channel name (e.g. <code style={{ background: 'var(--surface-3)', padding: '1px 4px', borderRadius: 2 }}>xqc</code>)</>
+}
+
+const PLATFORM_PLACEHOLDERS: Record<Platform, string> = {
+  twitch: 'channel name',
+  youtube: 'video ID or URL',
+  kick: 'channel name'
 }
 
 export default function ChatTabs() {
@@ -44,7 +50,6 @@ export default function ChatTabs() {
   const [platform, setPlatform] = useState<Platform>('twitch')
   const [connecting, setConnecting] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (showAdd) setTimeout(() => inputRef.current?.focus(), 50)
@@ -52,23 +57,23 @@ export default function ChatTabs() {
 
   useEffect(() => {
     if (!showAdd) return
-    const handler = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setShowAdd(false)
-      }
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setShowAdd(false); setSlug('') }
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
   }, [showAdd])
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
-    const trimmed = slug.trim().toLowerCase().replace(/^@/, '')
+    const raw = slug.trim().replace(/^@/, '')
+    const trimmed = platform === 'youtube' ? raw : raw.toLowerCase()
     if (!trimmed || connecting) return
 
     const id = `${platform}:${trimmed}`
     if (channels.some(c => c.id === id)) {
       setShowAdd(false)
+      setSlug('')
       setActiveChannel(id)
       return
     }
@@ -99,7 +104,7 @@ export default function ChatTabs() {
   }
 
   return (
-    <div style={{ flexShrink: 0, position: 'relative' }} ref={panelRef}>
+    <>
       {/* Tab bar */}
       <div style={{
         display: 'flex',
@@ -109,7 +114,8 @@ export default function ChatTabs() {
         borderBottom: '1px solid var(--border)',
         overflowX: 'auto',
         overflowY: 'hidden',
-        scrollbarWidth: 'none'
+        scrollbarWidth: 'none',
+        flexShrink: 0
       }}>
         <Tab
           label="All"
@@ -128,7 +134,7 @@ export default function ChatTabs() {
           />
         ))}
         <button
-          onClick={() => setShowAdd(v => !v)}
+          onClick={() => setShowAdd(true)}
           title="Add channel"
           style={{
             display: 'flex',
@@ -137,9 +143,9 @@ export default function ChatTabs() {
             width: '28px',
             flexShrink: 0,
             border: 'none',
-            borderBottom: showAdd ? '2px solid var(--accent)' : '2px solid transparent',
-            background: showAdd ? 'var(--surface-2)' : 'transparent',
-            color: showAdd ? 'var(--text-primary)' : 'var(--text-muted)',
+            borderBottom: '2px solid transparent',
+            background: 'transparent',
+            color: 'var(--text-muted)',
             cursor: 'pointer',
             transition: 'color 0.1s'
           }}
@@ -148,140 +154,134 @@ export default function ChatTabs() {
         </button>
       </div>
 
-      {/* Add channel panel */}
+      {/* Centered modal overlay */}
       {showAdd && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          right: 0,
-          zIndex: 50,
-          width: '268px',
-          background: 'var(--surface-1)',
-          border: '1px solid var(--border)',
-          borderTop: 'none',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
-        }}>
+        <div
+          onClick={e => { if (e.target === e.currentTarget) { setShowAdd(false); setSlug('') } }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.55)',
+            backdropFilter: 'blur(2px)'
+          }}
+        >
           <div style={{
-            padding: '9px 12px 8px',
-            borderBottom: '1px solid var(--border)',
-            fontSize: '10px',
-            fontWeight: 600,
-            color: 'var(--text-muted)',
-            letterSpacing: '0.07em',
-            textTransform: 'uppercase'
+            width: '320px',
+            background: 'var(--surface-1)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
+            overflow: 'hidden'
           }}>
-            Add Channel
-          </div>
-
-          <form onSubmit={handleAdd} style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: '9px' }}>
-            {/* Platform selector */}
-            <div style={{ display: 'flex', gap: '5px' }}>
-              {(['twitch', 'youtube', 'kick'] as Platform[]).map(p => {
-                const active = platform === p
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setPlatform(p)}
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '4px',
-                      padding: '6px 2px',
-                      border: active ? `1px solid ${PLATFORM_COLORS[p]}55` : '1px solid var(--border)',
-                      background: active ? `${PLATFORM_COLORS[p]}18` : 'var(--surface-2)',
-                      color: active ? PLATFORM_COLORS[p] : 'var(--text-muted)',
-                      cursor: 'pointer',
-                      fontSize: '11px',
-                      fontWeight: active ? 600 : 400,
-                      borderRadius: '3px',
-                      transition: 'all 0.1s'
-                    }}
-                  >
-                    {PLATFORM_ICONS[p]}
-                    <span>{PLATFORM_LABELS[p]}</span>
-                  </button>
-                )
-              })}
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '14px 16px 12px',
+              borderBottom: '1px solid var(--border)'
+            }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Add Channel
+              </span>
+              <button
+                onClick={() => { setShowAdd(false); setSlug('') }}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: '2px' }}
+              >
+                <X size={14} />
+              </button>
             </div>
 
-            {/* URL-prefix input */}
-            <div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'stretch',
-                background: 'var(--surface-0)',
-                border: '1px solid var(--border)',
-                borderRadius: '3px',
-                overflow: 'hidden'
-              }}>
-                <span style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '0 7px',
-                  fontSize: '10px',
-                  color: 'var(--text-muted)',
-                  background: 'var(--surface-2)',
-                  borderRight: '1px solid var(--border)',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                  userSelect: 'none'
-                }}>
-                  {PLATFORM_PREFIXES[platform]}
-                </span>
+            <form onSubmit={handleAdd} style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Platform selector */}
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {(['twitch', 'youtube', 'kick'] as Platform[]).map(p => {
+                  const active = platform === p
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => { setPlatform(p); setSlug('') }}
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '5px',
+                        padding: '8px 4px',
+                        border: active ? `1px solid ${PLATFORM_COLORS[p]}66` : '1px solid var(--border)',
+                        background: active ? `${PLATFORM_COLORS[p]}1a` : 'var(--surface-2)',
+                        color: active ? PLATFORM_COLORS[p] : 'var(--text-muted)',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        fontWeight: active ? 700 : 400,
+                        borderRadius: '5px',
+                        transition: 'all 0.1s'
+                      }}
+                    >
+                      {PLATFORM_ICONS[p]}
+                      <span>{PLATFORM_LABELS[p]}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Input */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <input
                   ref={inputRef}
                   value={slug}
                   onChange={e => setSlug(e.target.value)}
-                  placeholder="channel name"
+                  placeholder={PLATFORM_PLACEHOLDERS[platform]}
                   autoComplete="off"
                   spellCheck={false}
                   style={{
-                    flex: 1,
-                    fontSize: '12px',
-                    padding: '6px 8px',
-                    background: 'transparent',
-                    border: 'none',
+                    fontSize: '13px',
+                    padding: '8px 10px',
+                    background: 'var(--surface-0)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '5px',
                     color: 'var(--text-primary)',
                     outline: 'none',
-                    minWidth: 0
+                    width: '100%',
+                    boxSizing: 'border-box'
                   }}
+                  onFocus={e => { e.currentTarget.style.borderColor = PLATFORM_COLORS[platform] }}
+                  onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
                 />
-              </div>
-              {slug.trim() && (
-                <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', paddingLeft: '1px' }}>
-                  → <span style={{ color: 'var(--text-secondary)' }}>
-                    {PLATFORM_PREFIXES[platform]}{slug.trim().toLowerCase().replace(/^@/, '')}
-                  </span>
+                <p style={{ fontSize: '10px', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
+                  {PLATFORM_HINTS[platform]}
                 </p>
-              )}
-            </div>
+              </div>
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={!slug.trim() || connecting}
-              style={{
-                padding: '7px',
-                fontSize: '12px',
-                fontWeight: 600,
-                background: slug.trim() && !connecting ? PLATFORM_COLORS[platform] : 'var(--surface-3)',
-                border: 'none',
-                color: slug.trim() && !connecting ? '#fff' : 'var(--text-muted)',
-                cursor: slug.trim() && !connecting ? 'pointer' : 'default',
-                borderRadius: '3px',
-                transition: 'background 0.15s',
-                opacity: connecting ? 0.65 : 1
-              }}
-            >
-              {connecting ? 'Connecting…' : `Add ${PLATFORM_LABELS[platform]} Channel`}
-            </button>
-          </form>
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={!slug.trim() || connecting}
+                style={{
+                  padding: '9px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  background: slug.trim() && !connecting ? PLATFORM_COLORS[platform] : 'var(--surface-3)',
+                  border: 'none',
+                  color: slug.trim() && !connecting ? '#fff' : 'var(--text-muted)',
+                  cursor: slug.trim() && !connecting ? 'pointer' : 'default',
+                  borderRadius: '5px',
+                  transition: 'background 0.15s',
+                  opacity: connecting ? 0.7 : 1
+                }}
+              >
+                {connecting ? 'Connecting…' : `Add ${PLATFORM_LABELS[platform]} Channel`}
+              </button>
+            </form>
+          </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 

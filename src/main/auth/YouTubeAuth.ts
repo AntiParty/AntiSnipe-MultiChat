@@ -28,11 +28,12 @@ class YouTubeAuth {
   async startFlow(): Promise<void> {
     const settings = settingsStore.get()
     const clientId = settings.googleClientId
-    if (!clientId) {
+    const clientSecret = settings.googleClientSecret
+    if (!clientId || !clientSecret) {
       broadcaster.send(RENDERER_CHANNELS.PLATFORM_ERROR, {
         channelId: '',
         code: 'NO_CLIENT_ID',
-        message: 'No Google Client ID configured. Add it in Settings → Auth.'
+        message: 'Google Client ID and Client Secret are required. Add them in Settings → Auth.'
       })
       return
     }
@@ -103,9 +104,11 @@ class YouTubeAuth {
   private async exchangeCode(code: string, codeVerifier: string, redirectUri: string): Promise<void> {
     const settings = settingsStore.get()
     const clientId = settings.googleClientId
+    const clientSecret = settings.googleClientSecret
 
     const body = new URLSearchParams({
       client_id: clientId,
+      client_secret: clientSecret,
       code,
       code_verifier: codeVerifier,
       grant_type: 'authorization_code',
@@ -165,10 +168,12 @@ class YouTubeAuth {
 
     const settings = settingsStore.get()
     const clientId = settings.googleClientId
+    const clientSecret = settings.googleClientSecret
 
     try {
       const body = new URLSearchParams({
         client_id: clientId,
+        client_secret: clientSecret,
         grant_type: 'refresh_token',
         refresh_token: refreshToken
       })

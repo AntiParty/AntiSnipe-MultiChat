@@ -35,6 +35,7 @@ export interface AppSettings {
   twitchClientId: string
   twitchClientSecret: string
   googleClientId: string
+  googleClientSecret: string
   youtubeApiKey: string
 
   // Appearance
@@ -82,6 +83,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   twitchClientId: '',
   twitchClientSecret: '',
   googleClientId: '',
+  googleClientSecret: '',
   youtubeApiKey: '',
   theme: 'dark',
   fontSize: 14,

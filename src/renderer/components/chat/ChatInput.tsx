@@ -58,7 +58,7 @@ export default function ChatInput({ channelId }: ChatInputProps) {
       return
     }
     setMentionStart(mention.start)
-    const all = Array.from(chatters.values()).reverse()
+    const all = [...chatters].reverse()
     const matched = mention.query.length === 0
       ? all.slice(0, MAX_SUGGESTIONS)
       : all.filter(c =>

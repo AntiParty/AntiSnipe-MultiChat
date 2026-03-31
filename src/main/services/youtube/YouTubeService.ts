@@ -42,11 +42,22 @@ export class YouTubeChannel {
     this.stopped = false
     this.onStatus(this.channelId, 'connecting')
 
-    // slug can be a video ID (starts with known YT format) or a channel handle
-    // Heuristic: 11 chars and base64url → video ID
+    // Resolve the slug to a live chat ID.
+    // Accept: 11-char video ID, full watch URL (youtube.com/watch?v=...), or channel handle.
     let liveChatId: string | null = null
-    if (/^[A-Za-z0-9_-]{11}$/.test(this.slug)) {
-      liveChatId = await youtubeApiClient.getLiveChatId(this.slug)
+    let resolvedVideoId = this.slug
+
+    // Extract video ID from a pasted URL (watch?v=, /live/, /shorts/, youtu.be/)
+    try {
+      const parsed = new URL(this.slug.startsWith('http') ? this.slug : `https://${this.slug}`)
+      const v = parsed.searchParams.get('v')
+        ?? parsed.pathname.match(/\/(?:live|shorts|embed)\/([A-Za-z0-9_-]{11})/)?.[1]
+        ?? (parsed.hostname === 'youtu.be' ? parsed.pathname.slice(1) : null)
+      if (v) resolvedVideoId = v
+    } catch { /* not a URL */ }
+
+    if (/^[A-Za-z0-9_-]{11}$/.test(resolvedVideoId)) {
+      liveChatId = await youtubeApiClient.getLiveChatId(resolvedVideoId)
     }
     if (!liveChatId) {
       liveChatId = await youtubeApiClient.getChannelLiveChatId(this.slug)
