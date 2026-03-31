@@ -2,6 +2,7 @@ import log from 'electron-log'
 import { TwitchService } from './twitch/TwitchService'
 import { youtubeService } from './youtube/YouTubeService'
 import { KickService } from './kick/KickService'
+import { TikTokService } from './tiktok/TikTokService'
 import { broadcaster } from '../ipc/broadcaster'
 import { settingsStore } from '../store/SettingsStore'
 import { emoteCacheManager } from '../emotes/EmoteCacheManager'
@@ -25,8 +26,14 @@ class PlatformManager {
   private connectionStates = new Map<string, ConnectionState>()
   private twitchService: TwitchService
   private kickService: KickService
+  private tiktokService: TikTokService
 
   constructor() {
+    this.tiktokService = new TikTokService(
+      msg => this.handleMessage(msg),
+      (channelId, status, error) => this.setConnectionState(channelId, status, error)
+    )
+
     this.twitchService = new TwitchService(
       msg => this.handleMessage(msg),
       event => this.handleDelete(event),
@@ -90,6 +97,8 @@ class PlatformManager {
         }).catch(log.error)
 
         await this.kickService.joinChannel(channelId, slug, displayName)
+      } else if (platform === 'tiktok') {
+        await this.tiktokService.joinChannel(channelId, slug, displayName)
       }
     } catch (err) {
       log.error(`Failed to connect to ${platform}:${slug}:`, err)
@@ -111,6 +120,8 @@ class PlatformManager {
       youtubeService.leaveChannel(channelId)
     } else if (channel.platform === 'kick') {
       this.kickService.leaveChannel(channelId)
+    } else if (channel.platform === 'tiktok') {
+      this.tiktokService.leaveChannel(channelId)
     }
 
     this.setConnectionState(channelId, 'disconnected')
@@ -120,6 +131,7 @@ class PlatformManager {
     this.twitchService.disconnect()
     youtubeService.disconnectAll()
     this.kickService.disconnectAll()
+    this.tiktokService.disconnectAll()
     for (const channelId of this.connectionStates.keys()) {
       this.setConnectionState(channelId, 'disconnected')
     }

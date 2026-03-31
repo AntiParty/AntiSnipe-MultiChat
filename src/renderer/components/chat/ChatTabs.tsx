@@ -1,39 +1,44 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useStore } from '../../store'
 import { useSettings } from '../../hooks/useSettings'
-import { TwitchLogo, YouTubeLogo, KickLogo } from '../ui/PlatformLogos'
+import { TwitchLogo, YouTubeLogo, KickLogo, TikTokLogo } from '../ui/PlatformLogos'
 import type { Platform } from '@shared/types/message'
 import type { ChannelConfig } from '@shared/types/channel'
 
 const PLATFORM_COLORS: Record<Platform, string> = {
   twitch: '#9147ff',
   youtube: '#cc0000',
-  kick: '#53fc18'
+  kick: '#53fc18',
+  tiktok: '#ff0050'
 }
 
 const PLATFORM_LABELS: Record<Platform, string> = {
   twitch: 'Twitch',
   youtube: 'YouTube',
-  kick: 'Kick'
+  kick: 'Kick',
+  tiktok: 'TikTok'
 }
 
 const PLATFORM_ICONS: Record<Platform, React.ReactNode> = {
   twitch: <TwitchLogo size={14} />,
   youtube: <YouTubeLogo size={14} />,
-  kick: <KickLogo size={14} />
+  kick: <KickLogo size={14} />,
+  tiktok: <TikTokLogo size={14} />
 }
 
 const PLATFORM_HINTS: Record<Platform, React.ReactNode> = {
   twitch: <>Enter your channel name (e.g. <code style={{ background: 'var(--surface-3)', padding: '1px 4px', borderRadius: 2 }}>xqc</code>)</>,
   youtube: <>Paste your stream's video ID or URL. Start your stream first, then grab the ID from the URL — e.g. <code style={{ background: 'var(--surface-3)', padding: '1px 4px', borderRadius: 2 }}>TlbHFJewzm4</code></>,
-  kick: <>Enter your channel name (e.g. <code style={{ background: 'var(--surface-3)', padding: '1px 4px', borderRadius: 2 }}>xqc</code>)</>
+  kick: <>Enter your channel name (e.g. <code style={{ background: 'var(--surface-3)', padding: '1px 4px', borderRadius: 2 }}>xqc</code>)</>,
+  tiktok: <>Enter the TikTok username without @ (e.g. <code style={{ background: 'var(--surface-3)', padding: '1px 4px', borderRadius: 2 }}>username</code>). Must be live.</>
 }
 
 const PLATFORM_PLACEHOLDERS: Record<Platform, string> = {
   twitch: 'channel name',
   youtube: 'video ID or URL',
-  kick: 'channel name'
+  kick: 'channel name',
+  tiktok: 'username'
 }
 
 export default function ChatTabs() {
@@ -103,6 +108,14 @@ export default function ChatTabs() {
     await save({ channels: settings.channels.filter(c => c.id !== channelId) })
   }
 
+  const handleRename = async (channelId: string, newName: string) => {
+    const updated = settings.channels.map(c =>
+      c.id === channelId ? { ...c, displayName: newName } : c
+    )
+    await save({ channels: updated })
+    addChannel({ ...settings.channels.find(c => c.id === channelId)!, displayName: newName })
+  }
+
   return (
     <>
       {/* Tab bar */}
@@ -131,6 +144,7 @@ export default function ChatTabs() {
             platformColor={PLATFORM_COLORS[channel.platform]}
             unread={unreadCounts[channel.id] ?? 0}
             onRemove={e => handleRemove(channel.id, e)}
+            onRename={newName => handleRename(channel.id, newName)}
           />
         ))}
         <button
@@ -199,7 +213,7 @@ export default function ChatTabs() {
             <form onSubmit={handleAdd} style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {/* Platform selector */}
               <div style={{ display: 'flex', gap: '6px' }}>
-                {(['twitch', 'youtube', 'kick'] as Platform[]).map(p => {
+                {(['twitch', 'youtube', 'kick', 'tiktok'] as Platform[]).map(p => {
                   const active = platform === p
                   return (
                     <button
@@ -292,82 +306,205 @@ interface TabProps {
   platformColor?: string
   unread?: number
   onRemove?: (e: React.MouseEvent) => void
+  onRename?: (newName: string) => void
 }
 
-function Tab({ label, isActive, onClick, platformColor, unread, onRemove }: TabProps) {
+function Tab({ label, isActive, onClick, platformColor, unread, onRemove, onRename }: TabProps) {
   const [hovered, setHovered] = useState(false)
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  const [renaming, setRenaming] = useState(false)
+  const [renameValue, setRenameValue] = useState(label)
+  const renameRef = useRef<HTMLInputElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (renaming) setTimeout(() => { renameRef.current?.select() }, 20)
+  }, [renaming])
+
+  useEffect(() => {
+    if (!menu) return
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenu(null)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [menu])
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setMenu({ x: e.clientX, y: e.clientY })
+  }
+
+  const startRename = () => {
+    setRenameValue(label)
+    setMenu(null)
+    setRenaming(true)
+  }
+
+  const commitRename = () => {
+    const trimmed = renameValue.trim()
+    if (trimmed && trimmed !== label) onRename?.(trimmed)
+    setRenaming(false)
+  }
 
   return (
-    <div
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '4px',
-        padding: '0 8px',
-        fontSize: '11px',
-        whiteSpace: 'nowrap',
-        flexShrink: 0,
-        height: '100%',
-        cursor: 'pointer',
-        borderBottom: isActive
-          ? `2px solid ${platformColor ?? 'var(--accent)'}`
-          : '2px solid transparent',
-        background: isActive || hovered ? 'var(--surface-2)' : 'transparent',
-        color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-        transition: 'background 0.1s'
-      }}
-    >
-      {platformColor && (
-        <span style={{
-          width: '6px',
-          height: '6px',
-          borderRadius: '50%',
-          background: platformColor,
+    <>
+      <div
+        onClick={onClick}
+        onContextMenu={handleContextMenu}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '0 8px',
+          fontSize: '11px',
+          whiteSpace: 'nowrap',
           flexShrink: 0,
-          opacity: isActive ? 1 : 0.7
-        }} />
-      )}
-      <span>{label}</span>
-      {unread != null && unread > 0 && !isActive && (
-        <span style={{
-          fontSize: '9px',
-          padding: '0 4px',
-          background: 'var(--accent)',
-          color: '#fff',
-          minWidth: '15px',
-          textAlign: 'center',
-          borderRadius: '8px',
-          flexShrink: 0
-        }}>
-          {unread > 99 ? '99+' : unread}
-        </span>
-      )}
-      {hovered && onRemove && (
-        <button
-          onClick={onRemove}
-          title="Remove channel"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'none',
-            border: 'none',
-            padding: '1px',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
+          height: '100%',
+          cursor: 'pointer',
+          borderBottom: isActive
+            ? `2px solid ${platformColor ?? 'var(--accent)'}`
+            : '2px solid transparent',
+          background: isActive || hovered ? 'var(--surface-2)' : 'transparent',
+          color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+          transition: 'background 0.1s'
+        }}
+      >
+        {platformColor && (
+          <span style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            background: platformColor,
             flexShrink: 0,
-            lineHeight: 1,
-            transition: 'color 0.1s'
+            opacity: isActive ? 1 : 0.7
+          }} />
+        )}
+        {renaming ? (
+          <input
+            ref={renameRef}
+            value={renameValue}
+            onChange={e => setRenameValue(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={e => {
+              if (e.key === 'Enter') commitRename()
+              if (e.key === 'Escape') setRenaming(false)
+              e.stopPropagation()
+            }}
+            onClick={e => e.stopPropagation()}
+            style={{
+              fontSize: '11px',
+              background: 'var(--surface-0)',
+              border: '1px solid var(--accent)',
+              borderRadius: '2px',
+              color: 'var(--text-primary)',
+              outline: 'none',
+              padding: '0 3px',
+              width: `${Math.max(60, renameValue.length * 7)}px`
+            }}
+          />
+        ) : (
+          <span>{label}</span>
+        )}
+        {unread != null && unread > 0 && !isActive && (
+          <span style={{
+            fontSize: '9px',
+            padding: '0 4px',
+            background: 'var(--accent)',
+            color: '#fff',
+            minWidth: '15px',
+            textAlign: 'center',
+            borderRadius: '8px',
+            flexShrink: 0
+          }}>
+            {unread > 99 ? '99+' : unread}
+          </span>
+        )}
+        {hovered && !renaming && onRemove && (
+          <button
+            onClick={onRemove}
+            title="Remove channel"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'none',
+              border: 'none',
+              padding: '1px',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              flexShrink: 0,
+              lineHeight: 1,
+              transition: 'color 0.1s'
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--danger)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)' }}
+          >
+            <X size={9} />
+          </button>
+        )}
+      </div>
+
+      {/* Context menu */}
+      {menu && (
+        <div
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            top: menu.y,
+            left: menu.x,
+            zIndex: 200,
+            background: 'var(--surface-2)',
+            border: '1px solid var(--border)',
+            borderRadius: '5px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+            overflow: 'hidden',
+            minWidth: '130px'
           }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--danger)' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)' }}
         >
-          <X size={9} />
-        </button>
+          <button
+            onClick={startRename}
+            style={{
+              display: 'block',
+              width: '100%',
+              padding: '7px 12px',
+              background: 'none',
+              border: 'none',
+              textAlign: 'left',
+              fontSize: '12px',
+              color: 'var(--text-primary)',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-3)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'none' }}
+          >
+            Rename
+          </button>
+          {onRemove && (
+            <button
+              onClick={e => { setMenu(null); onRemove(e) }}
+              style={{
+                display: 'block',
+                width: '100%',
+                padding: '7px 12px',
+                background: 'none',
+                border: 'none',
+                borderTop: '1px solid var(--border)',
+                textAlign: 'left',
+                fontSize: '12px',
+                color: 'var(--danger)',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-3)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'none' }}
+            >
+              Remove
+            </button>
+          )}
+        </div>
       )}
-    </div>
+    </>
   )
 }

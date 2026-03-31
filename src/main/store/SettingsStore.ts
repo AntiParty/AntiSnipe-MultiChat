@@ -5,7 +5,7 @@ import type { AppSettings } from '../../shared/types/settings'
 
 const channelConfigSchema = z.object({
   id: z.string(),
-  platform: z.enum(['twitch', 'youtube', 'kick']),
+  platform: z.enum(['twitch', 'youtube', 'kick', 'tiktok']),
   slug: z.string(),
   displayName: z.string(),
   enabled: z.boolean()
@@ -37,6 +37,7 @@ const settingsSchema = z.object({
   showDeletedMessages: z.enum(['cross-out', 'hide']).default('cross-out'),
   showReplyContext: z.boolean().default(true),
   pauseScrollOnHover: z.boolean().default(false),
+  smoothScroll: z.boolean().default(false),
   showConnectionAlerts: z.boolean().default(true),
   hideCommands: z.boolean().default(false),
   flashOnMention: z.boolean().default(true),
@@ -90,6 +91,7 @@ class SettingsStore {
       showDeletedMessages: this.store.get('showDeletedMessages', 'cross-out'),
       showReplyContext: this.store.get('showReplyContext', true),
       pauseScrollOnHover: this.store.get('pauseScrollOnHover', false),
+      smoothScroll: this.store.get('smoothScroll', false),
       showConnectionAlerts: this.store.get('showConnectionAlerts', true),
       hideCommands: this.store.get('hideCommands', false),
       flashOnMention: this.store.get('flashOnMention', true),

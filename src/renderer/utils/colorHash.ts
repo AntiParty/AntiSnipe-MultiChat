@@ -3,7 +3,8 @@
  * Uses FNV-1a 32-bit hash → hue, with fixed saturation/lightness
  * for readability on dark backgrounds.
  */
-export function colorHash(username: string): string {
+export function colorHash(username: string | null | undefined): string {
+  if (!username) return 'hsl(0, 0%, 70%)'
   let hash = 2166136261 >>> 0
   for (let i = 0; i < username.length; i++) {
     hash ^= username.charCodeAt(i)

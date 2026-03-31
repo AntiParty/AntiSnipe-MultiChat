@@ -60,6 +60,7 @@ export interface AppSettings {
   showDeletedMessages: DeletedMessageStyle
   showReplyContext: boolean
   pauseScrollOnHover: boolean
+  smoothScroll: boolean
   showConnectionAlerts: boolean
   hideCommands: boolean
   flashOnMention: boolean
@@ -100,6 +101,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showDeletedMessages: 'cross-out',
   showReplyContext: true,
   pauseScrollOnHover: false,
+  smoothScroll: false,
   showConnectionAlerts: true,
   hideCommands: false,
   flashOnMention: true,

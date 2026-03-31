@@ -9,14 +9,14 @@
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue" alt="Platforms" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
   <img src="https://img.shields.io/badge/built%20with-Electron%20%2B%20React-61dafb" alt="Stack" />
-  <img src="https://img.shields.io/badge/emotes-7TV%20%7C%20BTTV%20%7C%20FFZ-orange" alt="Emote Providers" />
+  <img src="https://img.shields.io/badge/platforms-Twitch%20%7C%20YouTube%20%7C%20Kick%20%7C%20TikTok-orange" alt="Platforms" />
 </p>
 
 ---
 
 ## What is AntiSnipe MultiChat?
 
-AntiSnipe MultiChat is a **desktop chat client** that pulls together your Twitch, YouTube, and Kick live chat into a single, highly customizable window — so you never have to tab between browser dashboards again.
+AntiSnipe MultiChat is a **desktop chat client** that pulls together your Twitch, YouTube, Kick, and TikTok live chats into a single, highly customizable window — so you never have to tab between browser dashboards again.
 
 Built for streamers who multistream, have large communities, or simply want a cleaner, faster chat experience than what browser-based dashboards offer.
 
@@ -30,13 +30,14 @@ Built for streamers who multistream, have large communities, or simply want a cl
 
 ### Multi-Platform Chat — One Window
 
-| Platform | Chat | OAuth Login | Send Messages |
-|----------|------|-------------|---------------|
-| Twitch   | Yes  | Yes         | Yes           |
-| YouTube  | Yes  | Yes         | Coming soon   |
-| Kick     | Yes  | —           | Coming soon   |
+| Platform | Chat | OAuth Login | Send Messages | Notes |
+|----------|------|-------------|---------------|-------|
+| Twitch   | ✓    | ✓           | ✓             | Full IRC, mod actions, badges |
+| YouTube  | ✓    | ✓           | ✓             | Requires live stream video ID |
+| Kick     | ✓    | —           | —             | Public WebSocket, no login needed |
+| TikTok   | ✓    | —           | —             | Live chat + gifts, no login needed |
 
-Add unlimited channels across any platform. Switch between them with tabs, or view all chats merged into a single "All" feed.
+Add unlimited channels across any platform. Switch between them with tabs, or view all chats merged into a single **All** feed. Right-click any tab to rename or remove it.
 
 ### Third-Party Emotes
 
@@ -46,23 +47,29 @@ Full support for the emote providers your community uses:
 - **BetterTTV (BTTV)** — global and channel emotes, GIF support
 - **FrankerFaceZ (FFZ)** — global and channel emotes
 
-Emotes are fetched and cached on first connect. New messages show emotes instantly; messages already on screen are **retroactively updated** when the emote pack finishes loading.
+Hover any emote to see its name, provider, and a large preview. Emotes are fetched and cached on first connect. Messages already on screen are **retroactively updated** when the emote pack finishes loading — so even the initial burst of chat that arrives before emotes load will have emotes rendered correctly once they're ready.
 
-### Chatterino-Style UI
+### Mod Actions (Twitch)
 
-Built to feel familiar if you're a Chatterino user:
+If you're a moderator or broadcaster, action buttons appear on hover for each message:
 
-- Compact, normal, or cozy message spacing
-- Alternating row colors for dense chats
-- 12h/24h timestamps
-- Username display: display name, login, or both
-- Deleted messages: strike-through or hidden
-- Per-channel unread message badges on tabs
-- Platform indicator toggle (colored dot per message)
+- **Delete** — remove a single message
+- **Timeout** — quick-select presets (1m, 10m, 1h, 1d, or custom)
+- **Ban** — permanent ban
+
+Mod commands are routed through the Twitch Helix API — not IRC — so they work reliably regardless of IRC deprecations. You can also type `/ban`, `/timeout`, `/unban` directly in the chat input and they'll be intercepted and executed via the API.
+
+### @ Mention Autocomplete
+
+Start typing `@` in the chat input and a suggestion dropdown appears, populated from the most recent 500 chatters in that channel. Navigate with arrow keys, select with Tab or Enter.
 
 ### Reply Context
 
 When a chatter replies to someone, the original message is shown as a quoted bar directly above the reply — the same way Twitch's native client renders it.
+
+### Platform Icons
+
+Each message displays the source platform's icon inline (Twitch, YouTube, Kick, TikTok) so you can instantly tell which platform a message came from in a merged feed.
 
 ### Mentions and Alerts
 
@@ -78,7 +85,7 @@ When a chatter replies to someone, the original message is shown as a quoted bar
 | `Ctrl + -` | Zoom out (decrease font size) |
 | `Ctrl + 0` | Reset zoom |
 | `Ctrl + ,` | Open Settings |
-| `Escape` | Close Settings / panels |
+| `Escape` | Close modals / panels |
 
 ### Emote Animation Control
 
@@ -88,10 +95,14 @@ Control when animated emotes (GIFs / animated WebP) play:
 - **Focused only** — pause animations when the window is in the background
 - **Never** — always show static images
 
+### Own Messages
+
+When you send a message on Twitch, it appears in chat immediately — no waiting for the IRC echo round-trip. If the echo arrives before the 10-second window expires, it is silently dropped to prevent duplicates.
+
 ### Performance
 
 - Virtualized message list — handles 10,000+ messages/hr without slowdown
-- Configurable message limit per channel (500–10,000)
+- Configurable message limit per channel (500–50,000)
 - Disk-cached emotes — subsequent connects load from disk in under a second
 - Auto-reconnect on disconnect
 
@@ -131,47 +142,53 @@ npm run build:linux  # AppImage + .deb
 
 ## Setup Guide
 
-### Adding a Channel — No Login Required
-
-Read-only access needs no authentication:
+### Adding a Channel
 
 1. Click the **+** button in the tab bar
-2. Select your platform (Twitch / YouTube / Kick)
-3. Type the channel name (e.g. `xqc`)
+2. Select your platform
+3. Enter the channel identifier (see platform notes below)
 4. Click **Add Channel**
 
-You'll be connected and reading chat within seconds.
+Right-click any tab at any time to **rename** or **remove** it.
 
-### Twitch OAuth — Send Messages + Read Sub-Only Chat
+#### Twitch
+Enter the channel name (e.g. `xqc`). No login required to read chat. Log in via Settings → Auth to send messages and see mod actions.
 
-1. Go to [dev.twitch.tv/console](https://dev.twitch.tv/console)
+#### YouTube
+You must have an **active live stream** running first. Paste the video ID or full URL from your stream (e.g. `TlbHFJewzm4` or `https://www.youtube.com/live/TlbHFJewzm4`). YouTube chat only exists while a stream is live. Log in via Settings → Auth to send messages.
+
+> **Note:** YouTube channel handles (e.g. `@yourname`) are also supported but require the YouTube Search API and only work for public streams. For your own streams — including unlisted — always use the video ID.
+
+#### Kick
+Enter the channel slug (e.g. `xqc`). No login required. Chat is read via Kick's public Pusher WebSocket.
+
+#### TikTok
+Enter the username without `@` (e.g. `username`). The streamer must be live. Chat messages and gifts are received in real time with no authentication required.
+
+---
+
+## Auth Setup
+
+### Twitch
+
+1. Go to [dev.twitch.tv/console](https://dev.twitch.tv/console) and log in
 2. Click **Register Your Application**
-3. Fill in:
-   - **Name**: anything (e.g. `MyMultiChat`)
-   - **OAuth Redirect URL**: `http://localhost:27182/callback`
-   - **Category**: Chat Bot
-4. Click **Create** and copy your **Client ID**
-5. In AntiSnipe MultiChat, open **Settings → Accounts**
-6. Paste your Client ID and click **Connect Twitch**
-7. Authorize in the browser window that opens
+3. Set **OAuth Redirect URL** to `http://localhost:47891/auth/twitch`
+4. Set **Category** to **Chat Bot** and click **Create**
+5. Click **Manage → New Secret** and copy both **Client ID** and **Client Secret**
+6. In AntiSnipe MultiChat: **Settings → Auth → Twitch**, paste both values and click **Connect**
 
-Once connected, your username and badges appear on messages you send from the app.
+### YouTube
 
-### YouTube API Key
+1. Go to [console.cloud.google.com](https://console.cloud.google.com)
+2. Create a project, then go to **APIs & Services → Credentials**
+3. Click **Create Credentials → OAuth client ID**, type: **Desktop app**
+4. Add `http://localhost:47891/auth/youtube` as an authorized redirect URI
+5. Enable **YouTube Data API v3** in the API Library
+6. Copy both the **Client ID** and **Client Secret**
+7. In AntiSnipe MultiChat: **Settings → Auth → YouTube**, paste both values and click **Connect**
 
-YouTube live chat requires a **YouTube Data API v3** key:
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a project and enable the **YouTube Data API v3**
-3. Create credentials: **API Key**
-4. In AntiSnipe MultiChat, open **Settings → Accounts**
-5. Paste your API key and click **Connect YouTube**
-
-> **Quota note:** The free daily quota covers ~5.5 hours of polling at a 10-second interval. Request a quota increase in Google Cloud Console for full-day use.
-
-### Kick
-
-No API key or login required. Kick chat uses a public WebSocket. Add a Kick channel by slug (e.g. `xqc`) and it connects automatically.
+> **Quota note:** YouTube's free daily API quota covers approximately 5–6 hours of live chat polling. For heavier use, request a quota increase in Google Cloud Console.
 
 ---
 
@@ -179,18 +196,18 @@ No API key or login required. Kick chat uses a public WebSocket. Add a Kick chan
 
 Open Settings with `Ctrl + ,` or the gear icon.
 
-### Appearance & Chat Display
+### Appearance
 
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
 | Theme | Dark / Light / System | Dark | App color scheme |
-| Font Size | 10–22px | 14px | Base text size (also: `Ctrl +/-`) |
+| Font Size | 10–22px | 14px | Base text size (`Ctrl +/-` also works) |
 | Message Spacing | Compact / Normal / Cozy | Normal | Vertical padding between messages |
 | Alternating Rows | On / Off | Off | Subtle zebra-striping |
-| Timestamps | On / Off | Off | Show time next to each message |
+| Timestamps | On / Off | On | Show time next to each message |
 | Timestamp Format | 24h / 12h | 24h | Clock format |
-| Badges | On / Off | On | Subscriber, mod, and other badges |
-| Platform Indicator | On / Off | On | Colored dot showing the source platform |
+| Badges | On / Off | On | Subscriber, mod, and platform badges |
+| Platform Icon | On / Off | On | Platform icon next to each message |
 | Username Display | Display / Login / Both | Display | Which name variant to render |
 | Deleted Messages | Strike / Hide | Strike | How timed-out messages appear |
 
@@ -198,12 +215,13 @@ Open Settings with `Ctrl + ,` or the gear icon.
 
 | Setting | Options | Default | Description |
 |---------|---------|---------|-------------|
-| Pause Scroll on Hover | On / Off | On | Freeze auto-scroll when hovering |
+| Pause Scroll on Hover | On / Off | Off | Freeze auto-scroll when hovering |
+| Smooth Scroll | On / Off | Off | Glide to new messages instead of jumping |
 | Show Reply Context | On / Off | On | Quoted bar above reply messages |
 | Connection Alerts | On / Off | On | Connect/disconnect system messages |
-| Flash on Mention | On / Off | Off | Taskbar flash when your name is mentioned |
-| Hide Command Messages | On / Off | Off | Filter messages starting with `/` or `!` |
-| Max Messages Per Channel | 500–10,000 | 1,000 | Message retention cap |
+| Flash on Mention | On / Off | On | Taskbar flash when your name is mentioned |
+| Hide Commands | On / Off | Off | Filter messages starting with `/` or `!` |
+| Max Messages Per Channel | 100–50,000 | 5,000 | Message retention cap |
 
 ### Emotes
 
@@ -212,8 +230,17 @@ Open Settings with `Ctrl + ,` or the gear icon.
 | 7TV | On / Off | On | 7TV global and channel emotes |
 | BTTV | On / Off | On | BetterTTV emotes |
 | FFZ | On / Off | On | FrankerFaceZ emotes |
-| Emote Scale | 0.75× – 3× | 1× | Emote size relative to font |
-| Animation | Always / Focused / Never | Focused | When animated emotes play |
+| Emote Scale | 0.5× – 3× | 1.5× | Emote size relative to font |
+| Animation | Always / Focused / Never | Always | When animated emotes play |
+
+### Mod Actions (Twitch)
+
+| Setting | Description |
+|---------|-------------|
+| Show Delete button | Toggle the trash icon on messages |
+| Show Timeout button | Toggle the clock icon with duration presets |
+| Show Ban button | Toggle the ban icon |
+| Timeout Presets | Add/remove duration presets (e.g. `10m`, `1h`, `7d`) |
 
 ---
 
@@ -221,22 +248,29 @@ Open Settings with `Ctrl + ,` or the gear icon.
 
 ```
 src/
-├── main/           Electron main process (Node.js)
-│   ├── services/   Twitch IRC WS, YouTube polling, Kick Pusher
-│   ├── emotes/     7TV / BTTV / FFZ fetch, disk cache, resolver
-│   ├── auth/       OAuth PKCE (Twitch), API key (YouTube)
-│   ├── ipc/        Typed IPC bridge + rate-limited broadcaster
-│   └── store/      electron-store settings persistence
-├── renderer/       React 18 frontend
-│   ├── store/      Zustand 5 + immer + IPC sync middleware
-│   ├── components/ Chat (virtualized), settings, UI primitives
-│   └── hooks/      useSettings, useChat
-└── shared/         Types shared between main and renderer
-    ├── types/      message, channel, emote, settings, ipc
+├── main/               Electron main process (Node.js)
+│   ├── services/
+│   │   ├── twitch/     IRC WebSocket, message normalizer, badge resolver
+│   │   ├── youtube/    Data API v3 polling, OAuth client
+│   │   ├── kick/       Pusher WebSocket
+│   │   └── tiktok/     tiktok-live-connector, gift/sub normalizer
+│   ├── emotes/         7TV / BTTV / FFZ fetch, disk cache, resolver
+│   ├── auth/           OAuth PKCE (Twitch + YouTube), TokenStore
+│   ├── ipc/            Typed IPC bridge + rate-limited message broadcaster
+│   └── store/          electron-store settings persistence + Zod validation
+├── renderer/           React 18 frontend
+│   ├── store/          Zustand 5 + immer + IPC sync middleware
+│   ├── components/
+│   │   ├── chat/       Virtualized message list, MessageRow, ChatInput, ChatTabs
+│   │   ├── settings/   Auth, appearance, emotes, filters, mod buttons
+│   │   └── ui/         Button, Input, Tooltip, PlatformLogos
+│   └── hooks/          useSettings, useChat
+└── shared/             Types shared between main and renderer
+    ├── types/          message, channel, emote, settings, ipc
     └── constants.ts
 ```
 
-The main process owns all platform connections. Emote packs are fetched and cached on disk, then pushed to the renderer via a typed IPC event (`EMOTE_BATCH_READY`). The renderer retokenizes existing messages when emotes arrive, so nothing is missed.
+The main process owns all platform connections. Messages are batched and broadcast to the renderer via a typed IPC bridge at 30fps. Emote packs are fetched and cached on disk, then pushed via `EMOTE_BATCH_READY` — the renderer retokenizes existing messages so nothing is missed.
 
 ---
 
@@ -255,14 +289,14 @@ Open an issue first for large features to discuss the approach before writing co
 ## Roadmap
 
 - [ ] YouTube send messages
-- [ ] Kick OAuth + send messages
-- [ ] Merged "All" tab across platforms
+- [ ] Kick send messages
 - [ ] Per-channel custom keyword alert rules
 - [ ] Custom username color overrides
 - [ ] Regex-based chat filters
 - [ ] Log export (JSON / CSV)
 - [ ] Pronouns support
 - [ ] Resizable multi-column layout
+- [ ] TikTok OAuth for sending messages
 
 ---
 

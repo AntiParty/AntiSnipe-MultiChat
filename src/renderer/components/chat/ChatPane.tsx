@@ -15,6 +15,7 @@ export default function ChatPane() {
   const activeChannelId = useStore(s => s.activeChannelId)
   const channels = useStore(s => s.channels)
   const pauseScrollOnHover = useStore(s => s.settings.pauseScrollOnHover)
+  const smoothScroll = useStore(s => s.settings.smoothScroll)
   const messageSpacing = useStore(s => s.settings.messageSpacing)
 
   const virtualizer = useVirtualizer({
@@ -27,9 +28,9 @@ export default function ChatPane() {
 
   useEffect(() => {
     if (isAtBottom && messages.length > 0 && !hoveredRef.current) {
-      virtualizer.scrollToIndex(messages.length - 1, { align: 'end', behavior: 'auto' })
+      virtualizer.scrollToIndex(messages.length - 1, { align: 'end', behavior: smoothScroll ? 'smooth' : 'auto' })
     }
-  }, [messages.length, isAtBottom])
+  }, [messages.length, isAtBottom, smoothScroll])
 
   useEffect(() => {
     setIsAtBottom(true)

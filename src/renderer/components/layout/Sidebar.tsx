@@ -8,12 +8,14 @@ import type { Platform } from '@shared/types/message'
 const PLATFORM_COLORS: Record<Platform, string> = {
   twitch: '#9147ff',
   youtube: '#cc0000',
-  kick: '#53fc18'
+  kick: '#53fc18',
+  tiktok: '#ff0050'
 }
 const PLATFORM_INITIALS: Record<Platform, string> = {
   twitch: 'T',
   youtube: 'Y',
-  kick: 'K'
+  kick: 'K',
+  tiktok: 'TT'
 }
 
 function AddChannelForm({ onAdd }: { onAdd: (c: ChannelConfig) => void }) {

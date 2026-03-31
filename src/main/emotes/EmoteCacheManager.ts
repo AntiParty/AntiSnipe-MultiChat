@@ -53,15 +53,19 @@ class EmoteCacheManager {
   }
 
   flushToDisk(): void {
-    if (this.flushTimer) {
-      clearInterval(this.flushTimer)
-      this.flushTimer = null
-    }
     try {
       writeFileSync(this.cachePath, JSON.stringify(this.cache), 'utf8')
     } catch (err) {
       log.error('Failed to flush emote cache to disk:', err)
     }
+  }
+
+  shutdown(): void {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer)
+      this.flushTimer = null
+    }
+    this.flushToDisk()
   }
 
   async fetchGlobalEmotes(): Promise<void> {

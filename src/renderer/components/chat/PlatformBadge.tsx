@@ -4,7 +4,8 @@ import type { Platform } from '@shared/types/message'
 const PLATFORM_CONFIG: Record<Platform, { color: string; label: string }> = {
   twitch: { color: 'var(--twitch)', label: 'Twitch' },
   youtube: { color: 'var(--youtube)', label: 'YouTube' },
-  kick: { color: 'var(--kick)', label: 'Kick' }
+  kick: { color: 'var(--kick)', label: 'Kick' },
+  tiktok: { color: '#ff0050', label: 'TikTok' }
 }
 
 export default function PlatformBadge({ platform }: { platform: Platform }) {

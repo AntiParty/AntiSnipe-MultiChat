@@ -2,6 +2,7 @@ import { memo, useState, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { Trash2, Clock, Ban, ShieldOff } from 'lucide-react'
 import MessageContent from './MessageContent'
+import { PlatformLogo } from '../ui/PlatformLogos'
 import styles from '../../styles/chat.module.css'
 import { colorHash } from '../../utils/colorHash'
 import { formatTimestamp } from '../../utils/timeFormat'
@@ -12,12 +13,14 @@ import type { Platform } from '@shared/types/message'
 const PLATFORM_DOT_COLORS: Record<Platform, string> = {
   twitch: '#9147ff',
   youtube: '#cc0000',
-  kick: '#53fc18'
+  kick: '#53fc18',
+  tiktok: '#ff0050'
 }
 const PLATFORM_LABELS: Record<Platform, string> = {
   twitch: 'Twitch',
   youtube: 'YouTube',
-  kick: 'Kick'
+  kick: 'Kick',
+  tiktok: 'TikTok'
 }
 
 function formatDuration(secs: number): string {
@@ -180,10 +183,19 @@ function MessageRow({ message, index }: MessageRowProps) {
 
       {showPlatformBadge && (
         <span
-          className={styles.platformDot}
-          style={{ background: PLATFORM_DOT_COLORS[message.platform] }}
           title={PLATFORM_LABELS[message.platform]}
-        />
+          style={{
+            display: 'inline-block',
+            verticalAlign: 'middle',
+            marginRight: '3px',
+            position: 'relative',
+            top: '-1px',
+            color: PLATFORM_DOT_COLORS[message.platform],
+            lineHeight: 0
+          }}
+        >
+          <PlatformLogo platform={message.platform} size={11} />
+        </span>
       )}
 
       {showBadges && <InlineBadges badges={message.badges} />}

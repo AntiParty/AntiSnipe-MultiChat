@@ -1,6 +1,6 @@
 import type { EmoteData } from './emote'
 
-export type Platform = 'twitch' | 'youtube' | 'kick'
+export type Platform = 'twitch' | 'youtube' | 'kick' | 'tiktok'
 
 export type MessageType =
   | 'chat'        // normal message

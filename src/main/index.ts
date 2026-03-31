@@ -11,6 +11,12 @@ import { autoUpdaterManager } from './updater/AutoUpdater'
 
 log.initialize({ preload: true })
 
+// Disable QUIC — Chromium's HTTP/3 implementation emits spurious
+// "Fails to find on path connection IDs" errors in the renderer process
+// console. Since the app only needs standard WebSocket/HTTP/HTTPS, QUIC
+// provides no benefit and produces noise in the logs.
+app.commandLine.appendSwitch('disable-quic')
+
 const isDev = !app.isPackaged
 
 // Single instance lock
@@ -112,6 +118,6 @@ app.on('second-instance', () => {
 })
 
 app.on('window-all-closed', () => {
-  emoteCacheManager.flushToDisk()
+  emoteCacheManager.shutdown()
   if (process.platform !== 'darwin') app.quit()
 })

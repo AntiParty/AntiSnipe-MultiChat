@@ -191,6 +191,12 @@ export default function SettingsGeneral() {
             onCheckedChange={v => save({ pauseScrollOnHover: v })}
             label="Pause scroll on hover"
           />
+          <OptionRow label="Smooth scroll" description="Glide to new messages instead of jumping">
+            <Toggle
+              checked={settings.smoothScroll}
+              onCheckedChange={v => save({ smoothScroll: v })}
+            />
+          </OptionRow>
           <Toggle
             checked={settings.showReplyContext}
             onCheckedChange={v => save({ showReplyContext: v })}
