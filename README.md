@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/assets/logo.png" alt="AntiSnipe MultiChat" width="80" />
-</p>
-
 <h1 align="center">AntiSnipe MultiChat</h1>
 
 <p align="center">
