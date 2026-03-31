@@ -3,7 +3,7 @@ import { twitchBadgeResolver } from './TwitchBadgeResolver'
 import { emoteResolver } from '../../emotes/EmoteResolver'
 import { TWITCH_EMOTE_BASE } from '../../../shared/constants'
 import type { ParsedIrcMessage } from './TwitchIrcParser'
-import type { NormalizedMessage, MessagePart, MessageType } from '../../../shared/types/message'
+import type { NormalizedMessage, MessagePart, MessageType, ReplyContext } from '../../../shared/types/message'
 
 const URL_REGEX = /https?:\/\/[^\s<>[\]{}|\\^`"]+/g
 
@@ -48,6 +48,41 @@ function tokenizeText(text: string, channelId: string, mentionKeywords: string[]
   return parts
 }
 
+export function buildSelfMessage(
+  channelId: string,
+  channelDisplayName: string,
+  text: string,
+  authorName: string,
+  authorId: string,
+  mentionKeywords: string[],
+  keywordAlerts: string[],
+  badgeTag = '',
+  broadcasterId?: string
+): NormalizedMessage {
+  const parts = tokenizeText(text, channelId, mentionKeywords)
+  const rawLower = text.toLowerCase()
+  const badges = twitchBadgeResolver.resolve(badgeTag, broadcasterId)
+  return {
+    id: `self-${Date.now()}-${Math.random()}`,
+    platform: 'twitch',
+    channelId,
+    channelDisplayName,
+    authorId,
+    authorName,
+    authorDisplayName: authorName,
+    authorColor: null,
+    parts,
+    badges,
+    messageType: 'chat',
+    isHighlighted: keywordAlerts.some(kw => rawLower.includes(kw.toLowerCase())),
+    isMention: false,
+    isAction: false,
+    isDeleted: false,
+    timestamp: Date.now(),
+    raw: text,
+  }
+}
+
 export function normalizeTwitchMessage(
   msg: ParsedIrcMessage,
   channelId: string,
@@ -60,8 +95,28 @@ export function normalizeTwitchMessage(
   if (!msg.prefix || !msg.params[1]) return null
 
   const raw = msg.params[1]
-  const bodyText = isAction ? raw.replace(/^\x01ACTION /, '').replace(/\x01$/, '') : raw
   const tags = msg.tags
+
+  // Extract reply-parent context
+  let replyTo: ReplyContext | undefined
+  const replyParentLogin = tags['reply-parent-user-login']
+  if (replyParentLogin) {
+    replyTo = {
+      msgId: tags['reply-parent-msg-id'] || '',
+      userLogin: replyParentLogin,
+      userDisplayName: tags['reply-parent-display-name'] || replyParentLogin,
+      msgBody: tags['reply-parent-msg-body'] || ''
+    }
+  }
+
+  // When it's a reply, Twitch prepends "@login " — strip it for rendering
+  const strippedRaw = replyTo
+    ? raw.replace(new RegExp(`^@${replyTo.userLogin}\\s+`, 'i'), '').trim()
+    : raw
+
+  const bodyText = isAction
+    ? strippedRaw.replace(/^\x01ACTION /, '').replace(/\x01$/, '')
+    : strippedRaw
   const authorName = nickFromPrefix(msg.prefix)
   const authorDisplayName = tags['display-name'] || authorName
   const authorId = tags['user-id'] || ''
@@ -137,7 +192,8 @@ export function normalizeTwitchMessage(
     isAction,
     isDeleted: false,
     timestamp,
-    raw
+    raw,
+    replyTo
   }
 }
 

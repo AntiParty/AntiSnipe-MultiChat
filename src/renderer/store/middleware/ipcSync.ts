@@ -52,6 +52,23 @@ export function initIpcSync(): () => void {
   unsubscribers.push(
     bridge.on(RENDERER_CHANNELS.AUTH_STATE_CHANGED, ({ platform, state }) => {
       useStore.getState().updateAuthState(platform, state)
+
+      // Re-connect all channels for this platform once authentication succeeds.
+      // This handles both first-time auth (upgrade from anonymous) and
+      // re-auth after logout — in both cases the main process service has
+      // been reset and needs to re-join channels with fresh credentials.
+      if (state.status === 'authenticated') {
+        const { channels } = useStore.getState()
+        for (const ch of channels) {
+          if (ch.platform === platform && ch.enabled) {
+            bridge.invoke('channel:connect', {
+              channelId: ch.id,
+              platform: ch.platform,
+              slug: ch.slug
+            }).catch(() => {})
+          }
+        }
+      }
     })
   )
 
@@ -73,6 +90,20 @@ export function initIpcSync(): () => void {
   unsubscribers.push(
     bridge.on(RENDERER_CHANNELS.UPDATE_DOWNLOADED, ({ version }) => {
       useStore.getState().updateSettings({ _updateDownloaded: version } as any)
+    })
+  )
+
+  // Emote batch ready — retroactively tokenize messages with loaded emotes
+  unsubscribers.push(
+    bridge.on(RENDERER_CHANNELS.EMOTE_BATCH_READY, ({ channelId, emotes }) => {
+      useStore.getState().setChannelEmotes(channelId, emotes)
+    })
+  )
+
+  // Self mod status — track if connected user is mod/broadcaster in each channel
+  unsubscribers.push(
+    bridge.on(RENDERER_CHANNELS.SELF_MOD_STATUS, ({ channelId, isMod }) => {
+      useStore.getState().setSelfModStatus(channelId, isMod)
     })
   )
 

@@ -1,5 +1,7 @@
 import { ipcMain, shell } from 'electron'
-import { MAIN_CHANNELS } from '../../shared/types/ipc'
+import log from 'electron-log'
+import { MAIN_CHANNELS, RENDERER_CHANNELS } from '../../shared/types/ipc'
+import { broadcaster } from './broadcaster'
 import { settingsStore } from '../store/SettingsStore'
 import { platformManager } from '../services/PlatformManager'
 import { emoteCacheManager } from '../emotes/EmoteCacheManager'
@@ -11,7 +13,8 @@ import type {
   SendMessagePayload,
   AuthLogoutPayload,
   FetchEmotesPayload,
-  ShellOpenPayload
+  ShellOpenPayload,
+  ModActionPayload
 } from '../../shared/types/ipc'
 
 export function registerIpcHandlers(): void {
@@ -49,7 +52,12 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(MAIN_CHANNELS.AUTH_LOGOUT, async (_e, payload: AuthLogoutPayload) => {
     if (payload.platform === 'twitch' || payload.platform === 'youtube') {
+      platformManager.logoutPlatform(payload.platform)
       await tokenStore.clearTokens(payload.platform)
+      broadcaster.send(RENDERER_CHANNELS.AUTH_STATE_CHANGED, {
+        platform: payload.platform,
+        state: { status: 'unauthenticated' }
+      })
     }
   })
 
@@ -68,6 +76,16 @@ export function registerIpcHandlers(): void {
   // Emotes
   ipcMain.handle(MAIN_CHANNELS.FETCH_EMOTES, async (_e, payload: FetchEmotesPayload) => {
     await emoteCacheManager.fetchForChannel(payload)
+  })
+
+  // Mod actions
+  ipcMain.handle(MAIN_CHANNELS.MOD_ACTION, async (_e, payload: ModActionPayload) => {
+    try {
+      await platformManager.modAction(payload)
+    } catch (err) {
+      log.error('Mod action failed:', payload.action, err)
+      throw err
+    }
   })
 
   // Shell

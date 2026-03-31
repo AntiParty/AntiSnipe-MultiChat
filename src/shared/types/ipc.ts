@@ -18,6 +18,7 @@ export const MAIN_CHANNELS = {
   GET_AUTH_STATE: 'auth:getState',
   GET_CONNECTION_STATES: 'connections:getAll',
   FETCH_EMOTES: 'emotes:fetch',
+  MOD_ACTION: 'mod:action',
   SHELL_OPEN_EXTERNAL: 'shell:openExternal',
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
@@ -39,6 +40,7 @@ export const RENDERER_CHANNELS = {
   UPDATE_AVAILABLE: 'updater:available',
   UPDATE_DOWNLOADED: 'updater:downloaded',
   PLATFORM_ERROR: 'error:platform',
+  SELF_MOD_STATUS: 'mod:selfStatus',
 } as const
 
 export type RendererChannel = (typeof RENDERER_CHANNELS)[keyof typeof RENDERER_CHANNELS]
@@ -93,6 +95,22 @@ export interface PlatformErrorPayload {
   message: string
 }
 
+export type ModActionType = 'delete' | 'timeout' | 'ban' | 'unban'
+
+export interface ModActionPayload {
+  channelId: string
+  action: ModActionType
+  targetUserId: string
+  targetUserLogin: string
+  messageId?: string  // required for 'delete'
+  duration?: number   // seconds, required for 'timeout'
+}
+
+export interface SelfModStatusPayload {
+  channelId: string
+  isMod: boolean
+}
+
 // ─── Bridge type exposed via contextBridge ──────────────────────────────────
 
 export interface ChatBridgeInvokeMap {
@@ -107,6 +125,7 @@ export interface ChatBridgeInvokeMap {
   [MAIN_CHANNELS.GET_AUTH_STATE]: [undefined, AllAuthState]
   [MAIN_CHANNELS.GET_CONNECTION_STATES]: [undefined, ConnectionState[]]
   [MAIN_CHANNELS.FETCH_EMOTES]: [FetchEmotesPayload, void]
+  [MAIN_CHANNELS.MOD_ACTION]: [ModActionPayload, void]
   [MAIN_CHANNELS.SHELL_OPEN_EXTERNAL]: [ShellOpenPayload, void]
   [MAIN_CHANNELS.WINDOW_MINIMIZE]: [undefined, void]
   [MAIN_CHANNELS.WINDOW_MAXIMIZE]: [undefined, void]
@@ -124,6 +143,7 @@ export interface ChatBridgeEventMap {
   [RENDERER_CHANNELS.UPDATE_AVAILABLE]: { version: string }
   [RENDERER_CHANNELS.UPDATE_DOWNLOADED]: { version: string }
   [RENDERER_CHANNELS.PLATFORM_ERROR]: PlatformErrorPayload
+  [RENDERER_CHANNELS.SELF_MOD_STATUS]: SelfModStatusPayload
 }
 
 export interface ChatBridge {

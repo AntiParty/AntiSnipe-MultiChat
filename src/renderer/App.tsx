@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useStore } from './store'
 import { initIpcSync } from './store/middleware/ipcSync'
 import TitleBar from './components/layout/TitleBar'
@@ -11,8 +11,16 @@ export default function App() {
   const theme = useStore(s => s.settings.theme)
   const fontSize = useStore(s => s.settings.fontSize)
   const emoteScale = useStore(s => s.settings.emoteScale)
+  const updateSettings = useStore(s => s.updateSettings)
+  const openSettings = useStore(s => s.openSettings)
+  const closeSettings = useStore(s => s.closeSettings)
+  const setWindowFocused = useStore(s => s.setWindowFocused)
 
-  // Boot IPC sync (subscribes to main-process push events)
+  // Keep latest fontSize in a ref for keyboard handler closure
+  const fontSizeRef = useRef(fontSize)
+  useEffect(() => { fontSizeRef.current = fontSize }, [fontSize])
+
+  // Boot IPC sync
   useEffect(() => {
     const cleanup = initIpcSync()
     return cleanup
@@ -33,8 +41,70 @@ export default function App() {
   // Apply font size and emote scale as CSS vars
   useEffect(() => {
     document.documentElement.style.setProperty('--font-size', `${fontSize}px`)
+  }, [fontSize])
+
+  useEffect(() => {
     document.documentElement.style.setProperty('--emote-scale', String(emoteScale))
-  }, [fontSize, emoteScale])
+  }, [emoteScale])
+
+  // Track window focus for animated emote control
+  useEffect(() => {
+    const onFocus = () => setWindowFocused(true)
+    const onBlur = () => setWindowFocused(false)
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('blur', onBlur)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('blur', onBlur)
+    }
+  }, [setWindowFocused])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const ctrl = e.ctrlKey || e.metaKey
+
+      if (ctrl) {
+        // Ctrl/Cmd + = or + → zoom in
+        if (e.key === '=' || e.key === '+') {
+          e.preventDefault()
+          const next = Math.min(fontSizeRef.current + 1, 22)
+          updateSettings({ fontSize: next })
+          window.chatBridge.invoke('settings:set', { fontSize: next })
+          return
+        }
+        // Ctrl/Cmd + - → zoom out
+        if (e.key === '-') {
+          e.preventDefault()
+          const next = Math.max(fontSizeRef.current - 1, 10)
+          updateSettings({ fontSize: next })
+          window.chatBridge.invoke('settings:set', { fontSize: next })
+          return
+        }
+        // Ctrl/Cmd + 0 → reset zoom
+        if (e.key === '0') {
+          e.preventDefault()
+          updateSettings({ fontSize: 14 })
+          window.chatBridge.invoke('settings:set', { fontSize: 14 })
+          return
+        }
+        // Ctrl/Cmd + , → open settings (Chatterino convention)
+        if (e.key === ',') {
+          e.preventDefault()
+          openSettings()
+          return
+        }
+      }
+
+      // Escape → close settings / close panels
+      if (e.key === 'Escape') {
+        closeSettings()
+      }
+    }
+
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [updateSettings, openSettings, closeSettings])
 
   return (
     <div
@@ -42,10 +112,8 @@ export default function App() {
       style={{ background: 'var(--surface-0)', color: 'var(--text-primary)' }}
     >
       <TitleBar />
-
       <ChatTabs />
       <ChatPane />
-
       <StatusBar />
       <SettingsModal />
     </div>

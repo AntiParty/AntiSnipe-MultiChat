@@ -43,6 +43,31 @@
   font-style: italic;
 }
 
+/* ─── Reply context bar ──────────────────────────────────────────────────── */
+
+.replyBar {
+  display: block;
+  padding: 1px 6px 2px;
+  margin-bottom: 1px;
+  font-size: 0.78em;
+  color: var(--text-muted);
+  border-left: 2px solid var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  line-height: 1.4;
+}
+
+.replyBar .replyAuthor {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.replyBar .replySnippet {
+  opacity: 0.8;
+}
+
 /* ─── Inline elements — all flow together as one line ────────────────────── */
 
 .timestamp {
@@ -153,6 +178,80 @@
   color: var(--text-primary);
   font-weight: 600;
   font-size: 0.9em;
+}
+
+/* ─── Mod action buttons ─────────────────────────────────────────────────── */
+
+.modActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: 5px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 2px;
+  vertical-align: middle;
+  position: relative;
+  top: -1px;
+}
+
+.modBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: none;
+  border: none;
+  border-radius: 2px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.1s, background 0.1s;
+}
+
+.modBtn:hover {
+  background: var(--surface-3);
+  color: var(--text-primary);
+}
+
+.modBtnDanger:hover {
+  background: rgba(220, 53, 69, 0.15);
+  color: var(--danger);
+}
+
+.timeoutMenu {
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  overflow: hidden;
+  min-width: 52px;
+}
+
+.timeoutOption {
+  padding: 5px 10px;
+  font-size: 11px;
+  text-align: center;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s, color 0.1s;
+}
+
+.timeoutOption:hover {
+  background: var(--surface-3);
+  color: var(--text-primary);
 }
 
 /* ─── Scroll-to-bottom bar ───────────────────────────────────────────────── */

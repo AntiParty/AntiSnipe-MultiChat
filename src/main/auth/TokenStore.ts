@@ -92,8 +92,13 @@ class TokenStore {
   getAuthState(platform: 'twitch' | 'youtube'): AuthState {
     const entry = this.store.get(platform)
     if (!entry) return { status: 'unauthenticated' }
-    const token = this.getAccessToken(platform)
-    if (!token) return { status: 'unauthenticated' }
+    // Consider authenticated if we have a refresh token — the access token
+    // will be lazily refreshed when next needed. Returning unauthenticated
+    // here just because the access token expired would block the UI and
+    // prevent the IRC connection from knowing it should reconnect authenticated.
+    const hasAccessToken = !!this.getAccessToken(platform)
+    const hasRefreshToken = !!entry.encryptedRefreshToken
+    if (!hasAccessToken && !hasRefreshToken) return { status: 'unauthenticated' }
     return {
       status: 'authenticated',
       username: entry.username

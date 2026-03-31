@@ -9,10 +9,13 @@ import styles from '../../styles/chat.module.css'
 
 export default function ChatPane() {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const hoveredRef = useRef(false)
   const [isAtBottom, setIsAtBottom] = useState(true)
   const messages = useActiveMessages()
   const activeChannelId = useStore(s => s.activeChannelId)
   const channels = useStore(s => s.channels)
+  const pauseScrollOnHover = useStore(s => s.settings.pauseScrollOnHover)
+  const messageSpacing = useStore(s => s.settings.messageSpacing)
 
   const virtualizer = useVirtualizer({
     count: messages.length,
@@ -23,13 +26,14 @@ export default function ChatPane() {
   })
 
   useEffect(() => {
-    if (isAtBottom && messages.length > 0) {
+    if (isAtBottom && messages.length > 0 && !hoveredRef.current) {
       virtualizer.scrollToIndex(messages.length - 1, { align: 'end', behavior: 'auto' })
     }
   }, [messages.length, isAtBottom])
 
   useEffect(() => {
     setIsAtBottom(true)
+    hoveredRef.current = false
     if (messages.length > 0) {
       virtualizer.scrollToIndex(messages.length - 1, { align: 'end', behavior: 'auto' })
     }
@@ -52,13 +56,19 @@ export default function ChatPane() {
   const activeChannel = channels.find(c => c.id === activeChannelId)
   const canSend = activeChannelId !== 'all' && !!activeChannel
 
+  // Map messageSpacing to a CSS padding value applied to each row
+  const rowPaddingY = messageSpacing === 'compact' ? '0px' : messageSpacing === 'comfortable' ? '3px' : '1px'
+
   return (
-    <div className="flex flex-col flex-1 min-h-0" style={{ background: 'var(--surface-0)' }}>
+    <div
+      className="flex flex-col flex-1 min-h-0"
+      style={{ background: 'var(--surface-0)', '--row-padding-y': rowPaddingY } as React.CSSProperties}
+    >
       {messages.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
             {activeChannelId === 'all'
-              ? 'Add a channel in the sidebar to get started.'
+              ? 'Add a channel using the + button above.'
               : 'Waiting for messages…'}
           </p>
         </div>
@@ -66,16 +76,12 @@ export default function ChatPane() {
         <div
           ref={scrollRef}
           onScroll={handleScroll}
+          onMouseEnter={() => { if (pauseScrollOnHover) hoveredRef.current = true }}
+          onMouseLeave={() => { hoveredRef.current = false }}
           className="flex-1 overflow-y-auto py-1"
           style={{ overflowAnchor: 'none' }}
         >
-          <div
-            style={{
-              height: virtualizer.getTotalSize(),
-              width: '100%',
-              position: 'relative'
-            }}
-          >
+          <div style={{ height: virtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
             {virtualizer.getVirtualItems().map(virtualRow => (
               <div
                 key={messages[virtualRow.index].id}
@@ -89,14 +95,13 @@ export default function ChatPane() {
                   transform: `translateY(${virtualRow.start}px)`
                 }}
               >
-                <MessageRow message={messages[virtualRow.index]} />
+                <MessageRow message={messages[virtualRow.index]} index={virtualRow.index} />
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Scroll-to-bottom bar — Chatterino style: full-width bar, not a floating bubble */}
       {!isAtBottom && (
         <button onClick={scrollToBottom} className={styles.scrollToBottom}>
           <ArrowDown size={11} />

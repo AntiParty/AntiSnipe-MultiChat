@@ -1,9 +1,19 @@
 import type { StateCreator } from 'zustand'
-import type { NormalizedMessage, DeleteMessageEvent } from '@shared/types/message'
+import type { NormalizedMessage, MessagePart, DeleteMessageEvent } from '@shared/types/message'
+import type { EmoteData } from '@shared/types/emote'
 import { MAX_MESSAGES_PER_CHANNEL, TRIM_AMOUNT } from '@shared/constants'
+
+export interface ChatterInfo {
+  login: string
+  displayName: string
+}
 
 export interface ChatSlice {
   messagesByChannel: Record<string, NormalizedMessage[]>
+  emotesByChannel: Record<string, Record<string, EmoteData>>
+  selfModByChannel: Record<string, boolean>
+  // Recent chatters per channel: login → ChatterInfo (capped, insertion-ordered via Map)
+  chattersByChannel: Record<string, Map<string, ChatterInfo>>
   activeChannelId: string
   unreadCounts: Record<string, number>
 
@@ -12,12 +22,40 @@ export interface ChatSlice {
   setActiveChannel: (channelId: string) => void
   clearChannel: (channelId: string) => void
   resetUnread: (channelId: string) => void
+  setChannelEmotes: (channelId: string, emotes: EmoteData[]) => void
+  setSelfModStatus: (channelId: string, isMod: boolean) => void
+}
+
+function emotePriority(provider: EmoteData['provider']): number {
+  const p: Record<string, number> = { '7tv': 4, bttv: 3, ffz: 2, twitch: 1, kick: 1 }
+  return p[provider] ?? 0
+}
+
+function retokenizeParts(parts: MessagePart[], emoteMap: Record<string, EmoteData>): MessagePart[] {
+  const result: MessagePart[] = []
+  for (const part of parts) {
+    if (part.type !== 'text') { result.push(part); continue }
+    const words = part.content.split(/(\s+)/)
+    for (const word of words) {
+      if (!word) continue
+      const emote = emoteMap[word.trim()]
+      if (emote && word.trim() === word) {
+        result.push({ type: 'emote', emote })
+      } else {
+        result.push({ type: 'text', content: word })
+      }
+    }
+  }
+  return result
 }
 
 export const createChatSlice: StateCreator<ChatSlice, [['zustand/immer', never]], [], ChatSlice> = (
   set
 ) => ({
   messagesByChannel: { all: [] },
+  emotesByChannel: {},
+  selfModByChannel: {},
+  chattersByChannel: {},
   activeChannelId: 'all',
   unreadCounts: {},
 
@@ -82,6 +120,27 @@ export const createChatSlice: StateCreator<ChatSlice, [['zustand/immer', never]]
   resetUnread: channelId => {
     set(state => {
       state.unreadCounts[channelId] = 0
+    })
+  },
+
+  setSelfModStatus: (channelId, isMod) => {
+    set(state => { state.selfModByChannel[channelId] = isMod })
+  },
+
+  setChannelEmotes: (channelId, emotes) => {
+    set(state => {
+      // Build name → EmoteData map, higher-priority provider wins on collision
+      const sorted = [...emotes].sort((a, b) => emotePriority(a.provider) - emotePriority(b.provider))
+      const map: Record<string, EmoteData> = {}
+      for (const e of sorted) map[e.name] = e
+      state.emotesByChannel[channelId] = map
+
+      // Retroactively fix messages that arrived before emotes were loaded
+      const msgs = state.messagesByChannel[channelId]
+      if (!msgs) return
+      for (const msg of msgs) {
+        msg.parts = retokenizeParts(msg.parts, map) as typeof msg.parts
+      }
     })
   }
 })

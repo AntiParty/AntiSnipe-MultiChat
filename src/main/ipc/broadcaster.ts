@@ -1,6 +1,7 @@
 import { BrowserWindow } from 'electron'
 import { RENDERER_CHANNELS } from '../../shared/types/ipc'
 import { BROADCAST_INTERVAL_MS, BROADCAST_BATCH_SIZE } from '../../shared/constants'
+import { settingsStore } from '../store/SettingsStore'
 import type { NormalizedMessage } from '../../shared/types/message'
 
 class Broadcaster {
@@ -15,6 +16,13 @@ class Broadcaster {
   enqueue(messages: NormalizedMessage | NormalizedMessage[]): void {
     const arr = Array.isArray(messages) ? messages : [messages]
     this.queue.push(...arr)
+    // Flash taskbar when a mention arrives (if window not already focused)
+    if (this.win && !this.win.isDestroyed()) {
+      const settings = settingsStore.get()
+      if (settings.flashOnMention && !this.win.isFocused() && arr.some(m => m.isMention)) {
+        this.win.flashFrame(true)
+      }
+    }
     if (!this.timer) {
       this.timer = setTimeout(() => this.flush(), BROADCAST_INTERVAL_MS)
     }

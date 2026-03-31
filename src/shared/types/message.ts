@@ -25,6 +25,13 @@ export type MessagePart =
   | { type: 'mention'; content: string }
   | { type: 'link'; url: string; display: string }
 
+export interface ReplyContext {
+  msgId: string
+  userLogin: string
+  userDisplayName: string
+  msgBody: string
+}
+
 export interface NormalizedMessage {
   id: string
   platform: Platform
@@ -43,6 +50,7 @@ export interface NormalizedMessage {
   isDeleted: boolean
   timestamp: number
   raw: string
+  replyTo?: ReplyContext
 }
 
 export interface DeleteMessageEvent {

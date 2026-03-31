@@ -1,5 +1,6 @@
-import { memo } from 'react'
+import { memo, useState, useCallback } from 'react'
 import { clsx } from 'clsx'
+import { Trash2, Clock, Ban, ShieldOff } from 'lucide-react'
 import MessageContent from './MessageContent'
 import styles from '../../styles/chat.module.css'
 import { colorHash } from '../../utils/colorHash'
@@ -19,8 +20,16 @@ const PLATFORM_LABELS: Record<Platform, string> = {
   kick: 'Kick'
 }
 
+function formatDuration(secs: number): string {
+  if (secs < 60) return `${secs}s`
+  if (secs < 3600) return `${secs / 60}m`
+  if (secs < 86400) return `${secs / 3600}h`
+  return `${secs / 86400}d`
+}
+
 interface MessageRowProps {
   message: NormalizedMessage
+  index: number
 }
 
 function InlineBadges({ badges }: { badges: BadgeInfo[] }) {
@@ -61,12 +70,51 @@ function InlineBadges({ badges }: { badges: BadgeInfo[] }) {
   )
 }
 
-function MessageRow({ message }: MessageRowProps) {
+function MessageRow({ message, index }: MessageRowProps) {
   const showTimestamps = useStore(s => s.settings.showTimestamps)
+  const timestampFormat = useStore(s => s.settings.timestampFormat)
   const showBadges = useStore(s => s.settings.showBadges)
   const showPlatformBadge = useStore(s => s.settings.showPlatformBadge)
+  const alternatingRows = useStore(s => s.settings.alternatingRows)
+  const usernameDisplay = useStore(s => s.settings.usernameDisplay)
+  const showDeletedMessages = useStore(s => s.settings.showDeletedMessages)
+  const hideCommands = useStore(s => s.settings.hideCommands)
+  const showReplyContext = useStore(s => s.settings.showReplyContext)
+  const modButtons = useStore(s => s.settings.modButtons)
+  const isMod = useStore(s => s.selfModByChannel[message.channelId] ?? false)
 
-  const { messageType, isHighlighted, isMention, isAction, isDeleted } = message
+  const [hovered, setHovered] = useState(false)
+  const [timeoutOpen, setTimeoutOpen] = useState(false)
+
+  const { messageType, isHighlighted, isMention, isAction, isDeleted, raw } = message
+
+  const fireModAction = useCallback(
+    async (action: 'delete' | 'timeout' | 'ban' | 'unban', duration?: number) => {
+      try {
+        await window.chatBridge.invoke('mod:action', {
+          channelId: message.channelId,
+          action,
+          targetUserId: message.authorId,
+          targetUserLogin: message.authorName,
+          messageId: message.id,
+          duration
+        })
+      } catch (err) {
+        console.error('Mod action failed:', action, err)
+      }
+    },
+    [message.channelId, message.authorId, message.authorName, message.id]
+  )
+
+  // Hide command messages if setting enabled
+  if (hideCommands && raw && (raw.startsWith('/') || raw.startsWith('!'))) {
+    return null
+  }
+
+  // Hide deleted messages entirely if setting is 'hide'
+  if (isDeleted && showDeletedMessages === 'hide') {
+    return null
+  }
 
   if (messageType === 'sub' || messageType === 'resub' || messageType === 'giftsub' || messageType === 'announcement') {
     return <div className={styles.subMessage}><MessageContent parts={message.parts} /></div>
@@ -80,6 +128,23 @@ function MessageRow({ message }: MessageRowProps) {
 
   const authorColor = message.authorColor || colorHash(message.authorName)
 
+  let displayedName: string
+  if (usernameDisplay === 'login') {
+    displayedName = message.authorName
+  } else if (usernameDisplay === 'both' && message.authorDisplayName !== message.authorName) {
+    displayedName = `${message.authorDisplayName} (${message.authorName})`
+  } else {
+    displayedName = message.authorDisplayName
+  }
+
+  const rowBg = alternatingRows && index % 2 === 1 ? 'var(--surface-1)' : undefined
+
+  // Only show mod actions for Twitch chat messages with a real Twitch message ID.
+  // Self-injected optimistic messages use a "self-..." synthetic ID and are never
+  // stored on Twitch's side, so delete/timeout/ban against them would 404.
+  const hasRealMessageId = !message.id.startsWith('self-')
+  const showModActions = isMod && message.platform === 'twitch' && message.authorId && !isDeleted && hasRealMessageId
+
   return (
     <div
       className={clsx(styles.messageRow, {
@@ -88,11 +153,28 @@ function MessageRow({ message }: MessageRowProps) {
         [styles.deleted]: isDeleted,
         [styles.action]: isAction
       })}
+      style={{
+        background: rowBg,
+        paddingTop: 'var(--row-padding-y, 1px)',
+        paddingBottom: 'var(--row-padding-y, 1px)'
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => { setHovered(false); setTimeoutOpen(false) }}
     >
-      {/* All inline — flows as a single line that wraps naturally */}
+      {showReplyContext && message.replyTo && (
+        <div className={styles.replyBar}>
+          <span className={styles.replyAuthor}>
+            ↩ @{message.replyTo.userDisplayName || message.replyTo.userLogin}
+          </span>
+          {message.replyTo.msgBody && (
+            <span className={styles.replySnippet}>{': '}{message.replyTo.msgBody}</span>
+          )}
+        </div>
+      )}
+
       {showTimestamps && (
         <span className={styles.timestamp}>
-          {formatTimestamp(message.timestamp)}
+          {formatTimestamp(message.timestamp, timestampFormat)}
         </span>
       )}
 
@@ -111,7 +193,7 @@ function MessageRow({ message }: MessageRowProps) {
         style={{ color: authorColor }}
         title={`${message.authorName} (${message.platform})`}
       >
-        {message.authorDisplayName}
+        {displayedName}
       </span>
 
       <span className={styles.colon}>: </span>
@@ -119,6 +201,69 @@ function MessageRow({ message }: MessageRowProps) {
       <span className={clsx(styles.messageBody, 'select-text')}>
         <MessageContent parts={message.parts} />
       </span>
+
+      {showModActions && hovered && (
+        <span className={styles.modActions}>
+          {modButtons.showDelete && (
+            <button
+              className={styles.modBtn}
+              title="Delete message"
+              onClick={e => { e.stopPropagation(); fireModAction('delete') }}
+            >
+              <Trash2 size={10} />
+            </button>
+          )}
+
+          {modButtons.showTimeout && (
+            <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <button
+                className={styles.modBtn}
+                title="Timeout user"
+                onClick={e => { e.stopPropagation(); setTimeoutOpen(v => !v) }}
+              >
+                <Clock size={10} />
+              </button>
+              {timeoutOpen && (
+                <span className={styles.timeoutMenu}>
+                  {modButtons.timeoutPresets.map(secs => (
+                    <button
+                      key={secs}
+                      className={styles.timeoutOption}
+                      onClick={e => {
+                        e.stopPropagation()
+                        setTimeoutOpen(false)
+                        fireModAction('timeout', secs)
+                      }}
+                    >
+                      {formatDuration(secs)}
+                    </button>
+                  ))}
+                </span>
+              )}
+            </span>
+          )}
+
+          {modButtons.showBan && (
+            isDeleted ? (
+              <button
+                className={styles.modBtn}
+                title="Unban user"
+                onClick={e => { e.stopPropagation(); fireModAction('unban') }}
+              >
+                <ShieldOff size={10} />
+              </button>
+            ) : (
+              <button
+                className={clsx(styles.modBtn, styles.modBtnDanger)}
+                title="Ban user"
+                onClick={e => { e.stopPropagation(); fireModAction('ban') }}
+              >
+                <Ban size={10} />
+              </button>
+            )
+          )}
+        </span>
+      )}
     </div>
   )
 }
@@ -127,5 +272,6 @@ export default memo(
   MessageRow,
   (prev, next) =>
     prev.message.id === next.message.id &&
-    prev.message.isDeleted === next.message.isDeleted
+    prev.message.isDeleted === next.message.isDeleted &&
+    prev.index === next.index
 )

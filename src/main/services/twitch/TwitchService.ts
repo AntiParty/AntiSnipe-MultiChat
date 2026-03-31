@@ -1,4 +1,5 @@
 import WebSocket from 'ws'
+import { net } from 'electron'
 import log from 'electron-log'
 import { tokenStore } from '../../auth/TokenStore'
 import { twitchAuth } from '../../auth/TwitchAuth'
@@ -17,15 +18,18 @@ import {
   TWITCH_PONG_TIMEOUT_MS,
   RECONNECT_BASE_MS,
   RECONNECT_MAX_MS,
-  RECONNECT_JITTER
+  RECONNECT_JITTER,
+  TWITCH_HELIX_BASE
 } from '../../../shared/constants'
 import type { NormalizedMessage, DeleteMessageEvent } from '../../../shared/types/message'
 import type { ConnectionStatus } from '../../../shared/types/channel'
+import type { ModActionType } from '../../../shared/types/ipc'
 
 type OnMessage = (msg: NormalizedMessage) => void
 type OnDelete = (event: DeleteMessageEvent) => void
 type OnStatus = (status: ConnectionStatus, error?: string) => void
 type OnRoomState = (channelId: string, roomId: string) => void
+type OnSelfModStatus = (channelId: string, isMod: boolean) => void
 
 interface TwitchChannelHandle {
   channelId: string
@@ -47,16 +51,29 @@ export class TwitchService {
   private onDelete: OnDelete
   private onStatus: OnStatus
   private onRoomState: OnRoomState
+  private onSelfModStatus: OnSelfModStatus
+  private selfMessageKeys = new Map<string, number>() // "login:raw" → sent timestamp
+  private selfBadgeTags = new Map<string, string>()   // channelId → last known badge tag string
+  private selfModStatus = new Map<string, boolean>()  // channelId → is mod/broadcaster
 
-  constructor(onMessage: OnMessage, onDelete: OnDelete, onStatus: OnStatus, onRoomState: OnRoomState) {
+  constructor(onMessage: OnMessage, onDelete: OnDelete, onStatus: OnStatus, onRoomState: OnRoomState, onSelfModStatus: OnSelfModStatus) {
     this.onMessage = onMessage
     this.onDelete = onDelete
     this.onStatus = onStatus
     this.onRoomState = onRoomState
+    this.onSelfModStatus = onSelfModStatus
   }
 
   async joinChannel(handle: TwitchChannelHandle): Promise<void> {
     this.channels.set(handle.channelId, handle)
+    // Re-emit mod status from cached badge tag so the renderer doesn't
+    // have to wait for the next USERSTATE/PRIVMSG to show mod buttons
+    const cached = this.selfBadgeTags.get(handle.channelId)
+    if (cached !== undefined) {
+      const isMod = cached.includes('moderator') || cached.includes('broadcaster')
+      this.selfModStatus.set(handle.channelId, isMod)
+      this.onSelfModStatus(handle.channelId, isMod)
+    }
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(`JOIN #${handle.slug}\r\n`)
       await this.loadBadges(handle)
@@ -80,6 +97,17 @@ export class TwitchService {
     const handle = this.channels.get(channelId)
     if (!handle || this.ws?.readyState !== WebSocket.OPEN) return
     this.ws.send(`PRIVMSG #${handle.slug} :${text}\r\n`)
+    // Record for echo deduplication — skip /commands since Twitch never echoes them
+    if (!text.startsWith('/')) {
+      const { username } = tokenStore.getUserInfo('twitch')
+      if (username) {
+        const key = `${username.toLowerCase()}:${text}`
+        this.selfMessageKeys.set(key, Date.now())
+        for (const [k, t] of this.selfMessageKeys) {
+          if (Date.now() - t > 10_000) this.selfMessageKeys.delete(k)
+        }
+      }
+    }
   }
 
   disconnect(): void {
@@ -185,6 +213,28 @@ export class TwitchService {
         const handle = this.findHandleBySlug(channel)
         if (!handle) break
 
+        // Skip echo of own optimistically-injected messages
+        const senderLogin = nickFromPrefix(msg.prefix || '').toLowerCase()
+        const { username } = tokenStore.getUserInfo('twitch')
+        if (username && senderLogin === username.toLowerCase()) {
+          // Always capture the user's badge tag so optimistic messages can use it
+          if (msg.tags['badges'] !== undefined) {
+            const badgeStr = msg.tags['badges'] || ''
+            this.selfBadgeTags.set(handle.channelId, badgeStr)
+            const isMod = badgeStr.includes('moderator') || badgeStr.includes('broadcaster')
+            const prev = this.selfModStatus.get(handle.channelId)
+            if (prev !== isMod) {
+              this.selfModStatus.set(handle.channelId, isMod)
+              this.onSelfModStatus(handle.channelId, isMod)
+            }
+          }
+          const echoKey = `${senderLogin}:${msg.params[1]}`
+          if (this.selfMessageKeys.has(echoKey)) {
+            this.selfMessageKeys.delete(echoKey)
+            break
+          }
+        }
+
         const isAction =
           msg.params[1]?.startsWith('\x01ACTION ') && msg.params[1].endsWith('\x01')
         const settings = settingsStore.get()
@@ -247,9 +297,125 @@ export class TwitchService {
         break
       }
 
+      case 'USERSTATE': {
+        // Sent after JOIN and after each PRIVMSG — tells us our own badges in this channel
+        const channel = msg.params[0]?.slice(1)
+        const handle = this.findHandleBySlug(channel)
+        if (!handle) break
+        const badges = msg.tags['badges'] || ''
+        this.selfBadgeTags.set(handle.channelId, badges)
+        const isMod = badges.includes('moderator') || badges.includes('broadcaster')
+        const prev = this.selfModStatus.get(handle.channelId)
+        if (prev !== isMod) {
+          this.selfModStatus.set(handle.channelId, isMod)
+          this.onSelfModStatus(handle.channelId, isMod)
+        }
+        break
+      }
+
       case 'NOTICE':
         log.info('Twitch NOTICE:', msg.params.join(' '))
         break
+    }
+  }
+
+  /** Full reset — clears all state so the service can start fresh after logout */
+  reset(): void {
+    this.stopped = false
+    this.clearTimers()
+    if (this.ws) {
+      this.ws.close()
+      this.ws = null
+    }
+    this.buffer = ''
+    this.reconnectAttempt = 0
+    this.channels.clear()
+    this.selfMessageKeys.clear()
+    this.selfBadgeTags.clear()
+    this.selfModStatus.clear()
+  }
+
+  getSelfBadgeTag(channelId: string): string {
+    return this.selfBadgeTags.get(channelId) ?? ''
+  }
+
+  getBroadcasterId(channelId: string): string | undefined {
+    return this.channels.get(channelId)?.broadcasterId
+  }
+
+  isSelfMod(channelId: string): boolean {
+    return this.selfModStatus.get(channelId) ?? false
+  }
+
+  async lookupUserId(login: string, clientId: string, accessToken: string): Promise<string | null> {
+    try {
+      const resp = await net.fetch(
+        `${TWITCH_HELIX_BASE}/users?login=${encodeURIComponent(login)}`,
+        { headers: { Authorization: `Bearer ${accessToken}`, 'Client-Id': clientId } }
+      )
+      if (!resp.ok) return null
+      const data = await resp.json() as { data?: { id: string }[] }
+      return data.data?.[0]?.id ?? null
+    } catch {
+      return null
+    }
+  }
+
+  async modAction(
+    channelId: string,
+    action: ModActionType,
+    payload: { targetUserId: string; messageId?: string; duration?: number }
+  ): Promise<void> {
+    const handle = this.channels.get(channelId)
+    if (!handle?.broadcasterId) throw new Error('No broadcaster ID for channel')
+
+    let accessToken = tokenStore.getAccessToken('twitch')
+    if (!accessToken) {
+      accessToken = await twitchAuth.refreshAccessToken()
+    }
+    if (!accessToken) throw new Error('Not authenticated — token expired and refresh failed')
+
+    const { twitchClientId: clientId } = settingsStore.get()
+    const { userId: moderatorId } = tokenStore.getUserInfo('twitch')
+    if (!clientId) throw new Error('Missing Twitch Client ID in settings')
+    if (!moderatorId) throw new Error('Missing moderator user ID — try logging out and back in')
+
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${accessToken}`,
+      'Client-Id': clientId,
+      'Content-Type': 'application/json'
+    }
+
+    if (action === 'delete') {
+      if (!payload.messageId) throw new Error('messageId required for delete action')
+      const url = `${TWITCH_HELIX_BASE}/chat/messages?broadcaster_id=${handle.broadcasterId}&moderator_id=${moderatorId}&message_id=${payload.messageId}`
+      const resp = await net.fetch(url, { method: 'DELETE', headers })
+      if (!resp.ok) {
+        const text = await resp.text()
+        throw new Error(`Delete message failed: ${resp.status} ${text}`)
+      }
+    } else if (action === 'timeout' || action === 'ban') {
+      const url = `${TWITCH_HELIX_BASE}/moderation/bans?broadcaster_id=${handle.broadcasterId}&moderator_id=${moderatorId}`
+      const data: Record<string, unknown> = { user_id: payload.targetUserId }
+      if (action === 'timeout' && payload.duration) {
+        data.duration = payload.duration
+      }
+      const resp = await net.fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ data })
+      })
+      if (!resp.ok) {
+        const text = await resp.text()
+        throw new Error(`${action} failed: ${resp.status} ${text}`)
+      }
+    } else if (action === 'unban') {
+      const url = `${TWITCH_HELIX_BASE}/moderation/bans?broadcaster_id=${handle.broadcasterId}&moderator_id=${moderatorId}&user_id=${payload.targetUserId}`
+      const resp = await net.fetch(url, { method: 'DELETE', headers })
+      if (!resp.ok) {
+        const text = await resp.text()
+        throw new Error(`Unban failed: ${resp.status} ${text}`)
+      }
     }
   }
 

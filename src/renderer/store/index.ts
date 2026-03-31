@@ -1,12 +1,43 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
-import type { ChatSlice } from './slices/chatSlice'
+import type { ChatSlice, ChatterInfo } from './slices/chatSlice'
 import type { ChannelsSlice } from './slices/channelsSlice'
 import type { SettingsSlice } from './slices/settingsSlice'
 import type { AuthSlice } from './slices/authSlice'
+import type { EmoteData } from '@shared/types/emote'
+import type { MessagePart } from '@shared/types/message'
 import { DEFAULT_SETTINGS } from '@shared/types/settings'
 
-export type RootState = ChatSlice & ChannelsSlice & SettingsSlice & AuthSlice
+function emotePriority(provider: EmoteData['provider']): number {
+  const p: Record<string, number> = { '7tv': 4, bttv: 3, ffz: 2, twitch: 1, kick: 1 }
+  return p[provider] ?? 0
+}
+
+function retokenizeParts(parts: MessagePart[], emoteMap: Record<string, EmoteData>): MessagePart[] {
+  const result: MessagePart[] = []
+  for (const part of parts) {
+    if (part.type !== 'text') { result.push(part); continue }
+    const words = part.content.split(/(\s+)/)
+    for (const word of words) {
+      if (!word) continue
+      const emote = emoteMap[word.trim()]
+      if (emote && word.trim() === word) {
+        result.push({ type: 'emote', emote })
+      } else {
+        result.push({ type: 'text', content: word })
+      }
+    }
+  }
+  return result
+}
+
+// Keep only the N most-recently-seen chatters per channel
+const MAX_CHATTERS = 500
+
+export type RootState = ChatSlice & ChannelsSlice & SettingsSlice & AuthSlice & {
+  windowFocused: boolean
+  setWindowFocused: (v: boolean) => void
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SetState = (fn: (state: RootState) => void) => void
@@ -17,6 +48,9 @@ function buildChatSlice(set: SetState): ChatSlice {
   const TRIM = 1000
   return {
     messagesByChannel: {},
+    emotesByChannel: {},
+    selfModByChannel: {},
+    chattersByChannel: {},
     activeChannelId: 'all',
     unreadCounts: {},
     addMessages: messages =>
@@ -30,6 +64,20 @@ function buildChatSlice(set: SetState): ChatSlice {
           }
           if (state.activeChannelId !== channelId && state.activeChannelId !== 'all') {
             state.unreadCounts[channelId] = (state.unreadCounts[channelId] ?? 0) + 1
+          }
+          // Track chatters for @ autocomplete (skip system messages)
+          if (msg.authorName && msg.messageType === 'chat' || msg.messageType === 'action') {
+            if (!state.chattersByChannel[channelId]) {
+              state.chattersByChannel[channelId] = new Map<string, ChatterInfo>()
+            }
+            const map = state.chattersByChannel[channelId]
+            // Move to end (most recent) by deleting then re-adding
+            map.delete(msg.authorName)
+            map.set(msg.authorName, { login: msg.authorName, displayName: msg.authorDisplayName })
+            // Evict oldest entry if over cap
+            if (map.size > MAX_CHATTERS) {
+              map.delete(map.keys().next().value!)
+            }
           }
         }
       }),
@@ -58,6 +106,20 @@ function buildChatSlice(set: SetState): ChatSlice {
     resetUnread: channelId =>
       set(state => {
         state.unreadCounts[channelId] = 0
+      }),
+    setSelfModStatus: (channelId, isMod) =>
+      set(state => { state.selfModByChannel[channelId] = isMod }),
+    setChannelEmotes: (channelId, emotes) =>
+      set(state => {
+        const sorted = [...emotes].sort((a, b) => emotePriority(a.provider) - emotePriority(b.provider))
+        const map: Record<string, EmoteData> = {}
+        for (const e of sorted) map[e.name] = e
+        state.emotesByChannel[channelId] = map
+        const msgs = state.messagesByChannel[channelId]
+        if (!msgs) return
+        for (const msg of msgs) {
+          msg.parts = retokenizeParts(msg.parts, map) as typeof msg.parts
+        }
       })
   }
 }
@@ -113,7 +175,9 @@ export const useStore = create<RootState>()(
       ...buildChatSlice(s),
       ...buildChannelsSlice(s),
       ...buildSettingsSlice(s),
-      ...buildAuthSlice(s)
+      ...buildAuthSlice(s),
+      windowFocused: true,
+      setWindowFocused: (v: boolean) => set(state => { (state as RootState).windowFocused = v })
     }
   })
 )

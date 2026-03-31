@@ -6,11 +6,13 @@ import SettingsGeneral from './SettingsGeneral'
 import SettingsEmotes from './SettingsEmotes'
 import SettingsFilters from './SettingsFilters'
 import SettingsAuth from './SettingsAuth'
+import SettingsMod from './SettingsMod'
 
 const TABS = [
   { id: 'general', label: 'General', Component: SettingsGeneral },
   { id: 'emotes', label: 'Emotes', Component: SettingsEmotes },
   { id: 'filters', label: 'Filters', Component: SettingsFilters },
+  { id: 'moderation', label: 'Moderation', Component: SettingsMod },
   { id: 'auth', label: 'Auth', Component: SettingsAuth }
 ]
 
