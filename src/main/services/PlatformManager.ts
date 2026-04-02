@@ -10,6 +10,7 @@ import { tokenStore } from '../auth/TokenStore'
 import { twitchAuth } from '../auth/TwitchAuth'
 import { buildSelfMessage } from './twitch/TwitchMessageNormalizer'
 import { RENDERER_CHANNELS } from '../../shared/types/ipc'
+import { pluginManager } from './PluginManager'
 import type { ConnectChannelPayload, ConnectionState } from '../../shared/types/channel'
 import type { NormalizedMessage, DeleteMessageEvent } from '../../shared/types/message'
 import type { ModActionPayload, ModActionType } from '../../shared/types/ipc'
@@ -54,6 +55,43 @@ class PlatformManager {
   }
 
   private handleMessage(msg: NormalizedMessage): void {
+    const action = pluginManager.applyToMessage(msg)
+    if (action?.type === 'hide') return
+    if (action?.type === 'highlight') msg.highlight = action.color
+    if (action?.type === 'tag') {
+      msg.tags = msg.tags || []
+      msg.tags.push({ label: action.label, color: action.color })
+    }
+    if (action?.type === 'replace') msg.text = action.text
+    if (action?.type === 'command') {
+      let respond = action.respond
+      if (respond === '__song__') {
+        try {
+          const { execSync } = require('child_process')
+          if (process.platform === 'win32') {
+            const out = execSync(
+              'powershell -Command ' +
+              '"$ErrorActionPreference = \'SilentlyContinue\'; ' +
+              '$spotify = (Get-Process -Name Spotify -ErrorAction SilentlyContinue).MainWindowTitle; ' +
+              'if ($spotify) { $song = $spotify -replace \'^Spotify ?- ?\'; if ($song -ne \'\') { $song } }"',
+              { timeout: 3000, encoding: 'utf8' }
+            ).trim()
+            respond = out || '(nothing playing)'
+          } else {
+            respond = '(not supported)'
+          }
+        } catch {
+          respond = '(error)'
+        }
+      }
+      // Mention the user if setting is enabled
+      const settings = settingsStore.get()
+      if (settings.pluginMentionUsers) {
+        respond = `@${msg.authorDisplay} ${respond}`
+      }
+      // Send the response to the same channel
+      this.sendMessage(msg.channelId, respond).catch(err => log.error('Plugin command send failed:', err))
+    }
     broadcaster.enqueue(msg)
   }
 
@@ -177,9 +215,11 @@ class PlatformManager {
         broadcaster.enqueue(selfMsg)
       }
     } else if (channel.platform === 'youtube') {
-      youtubeService.sendMessage(channelId, text)
+      await youtubeService.sendMessage(channelId, text)
     } else if (channel.platform === 'kick') {
-      log.warn('Kick send message requires session cookie — limited support')
+      throw new Error('Sending messages on Kick is not supported (requires session cookie)')
+    } else if (channel.platform === 'tiktok') {
+      throw new Error('Sending messages on TikTok is not supported')
     }
   }
 
@@ -230,6 +270,10 @@ class PlatformManager {
     if (channel.platform === 'twitch') {
       await this.twitchService.modAction(channelId, action, { targetUserId, messageId, duration })
     }
+  }
+
+  getSelfModStatuses(): Record<string, boolean> {
+    return this.twitchService.getSelfModStatuses()
   }
 
   getAllConnectionStates(): ConnectionState[] {

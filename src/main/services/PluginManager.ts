@@ -1,0 +1,344 @@
+import { app } from 'electron'
+import vm from 'vm'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, watchFile, unwatchFile } from 'fs'
+import { join } from 'path'
+import log from 'electron-log'
+import type { PluginMeta, PluginRecord, PluginMessage, PluginAction } from '../../shared/types/plugin'
+import type { NormalizedMessage } from '../../shared/types/message'
+
+type PluginFn = (msg: PluginMessage) => PluginAction | null
+
+// Safe sandbox: give plugins standard JS globals but no Node APIs
+const SANDBOX = vm.createContext({
+  Set, Map, Array, Object, RegExp, JSON, Math, Date, Number, String, Boolean,
+  parseInt, parseFloat, isNaN, isFinite, console: { log: () => {}, warn: () => {}, error: () => {} }
+})
+
+function compileFn(id: string, code: string): PluginFn | null {
+  try {
+    const src = code.replace(/\bexport\s+default\s+/g, '__EXPORT__ = ')
+    // Each plugin gets its own fresh context derived from the safe sandbox
+    const ctx = vm.createContext(Object.create(SANDBOX))
+    vm.runInContext(`var __EXPORT__=null;\n${src}`, ctx, { timeout: 500 })
+    const fn = ctx.__EXPORT__
+    return typeof fn === 'function' ? (fn as PluginFn) : null
+  } catch (err) {
+    log.warn(`PluginManager: compile error "${id}":`, err)
+    return null
+  }
+}
+
+function toPluginMessage(msg: NormalizedMessage): PluginMessage {
+  const text = msg.parts.map(p =>
+    p.type === 'text' || p.type === 'mention' ? p.content
+    : p.type === 'emote' ? p.emote.name
+    : p.type === 'link' ? p.url : ''
+  ).join('')
+  const badges = msg.badges.map(b => b.id)
+  return {
+    id: msg.id, platform: msg.platform, channelId: msg.channelId,
+    author: msg.authorName, authorDisplay: msg.authorDisplayName,
+    text, messageType: msg.messageType, badges,
+    isMod: badges.includes('moderator') || badges.includes('broadcaster'),
+    isSubscriber: badges.includes('subscriber') || badges.includes('founder')
+  }
+}
+
+const STATE_FILE = 'plugins-state.json'
+
+export class PluginManager {
+  private pluginsDir: string
+  private stateFile: string
+  private records  = new Map<string, PluginRecord>()
+  private compiled = new Map<string, PluginFn>()
+  private enabledState: Record<string, boolean> = {}  // id → enabled
+  private changeCallbacks: Array<() => void> = []
+
+  constructor() {
+    this.pluginsDir = join(app.getPath('userData'), 'plugins')
+    this.stateFile  = join(this.pluginsDir, STATE_FILE)
+    const firstRun = !existsSync(this.pluginsDir)
+    if (firstRun) {
+      mkdirSync(this.pluginsDir, { recursive: true })
+    }
+    this.loadState()
+    this.writeExamplePlugins()  // writes only missing files
+  }
+
+  private loadState(): void {
+    try {
+      if (existsSync(this.stateFile)) {
+        this.enabledState = JSON.parse(readFileSync(this.stateFile, 'utf8'))
+      }
+    } catch { /* corrupt file — start fresh */ }
+  }
+
+  private saveState(): void {
+    try {
+      writeFileSync(this.stateFile, JSON.stringify(this.enabledState, null, 2), 'utf8')
+    } catch (err) {
+      log.warn('PluginManager: failed to save state', err)
+    }
+  }
+
+  /** Load (or reload) all .js files from the plugins directory. */
+  load(): void {
+    // Stop watching old files
+    for (const record of this.records.values()) {
+      unwatchFile(record.meta.filePath)
+    }
+    this.records.clear()
+    this.compiled.clear()
+
+    let files: string[] = []
+    try {
+      files = readdirSync(this.pluginsDir).filter(f => f.endsWith('.js'))
+    } catch (err) {
+      log.error('PluginManager: cannot read plugins dir', err)
+      return
+    }
+
+    for (const file of files) {
+      const filePath = join(this.pluginsDir, file)
+      this.loadFile(filePath)
+
+      // Watch for changes and hot-reload
+      watchFile(filePath, { interval: 1000 }, () => {
+        log.info('PluginManager: reloading', file)
+        this.loadFile(filePath)
+        this.changeCallbacks.forEach(cb => cb())
+      })
+    }
+  }
+
+  private loadFile(filePath: string): void {
+    const id = filePath.replace(/\\/g, '/').split('/').pop()!.replace(/\.js$/, '')
+    let code = ''
+    let error: string | undefined
+
+    try {
+      code = readFileSync(filePath, 'utf8')
+    } catch (err) {
+      error = String(err)
+      log.warn('PluginManager: failed to read', filePath, err)
+    }
+
+    const nameMatch = code.match(/\/\/\s*@name\s+(.+)/)
+    const name = nameMatch ? nameMatch[1].trim() : id
+
+    // Compile in main process (vm module — no CSP)
+    this.compiled.delete(id)
+    if (!error && code) {
+      const fn = compileFn(id, code)
+      if (fn) {
+        this.compiled.set(id, fn)
+      } else {
+        error = error ?? 'Plugin did not export a default function'
+      }
+    }
+
+    // Enabled defaults to true for new plugins; persisted state overrides
+    const enabled = this.enabledState[id] ?? true
+    const meta: PluginMeta = { id, name, enabled, filePath, error }
+    this.records.set(id, { meta, code })
+  }
+
+  /** Run all enabled plugins against a NormalizedMessage. Returns first action or null. */
+  applyToMessage(msg: NormalizedMessage): PluginAction | null {
+    if (this.compiled.size === 0) return null
+    return this.applyToPluginMessage(toPluginMessage(msg))
+  }
+
+  /** Run all enabled plugins against a PluginMessage. Returns first action or null. */
+  applyToPluginMessage(pmsg: PluginMessage): PluginAction | null {
+    for (const [id, fn] of this.compiled) {
+      const record = this.records.get(id)
+      if (!record?.meta.enabled) continue
+      try {
+        const action = fn(pmsg)
+        if (action != null) return action
+      } catch { /* plugin threw — skip */ }
+    }
+    return null
+  }
+
+  getAll(): PluginRecord[] {
+    return Array.from(this.records.values())
+  }
+
+  /** Toggle enabled state for a plugin. Persisted to disk. Returns updated list. */
+  toggleEnabled(id: string, enabled: boolean): PluginRecord[] {
+    const record = this.records.get(id)
+    if (!record) throw new Error(`Plugin not found: ${id}`)
+    record.meta.enabled = enabled
+    this.enabledState[id] = enabled
+    this.saveState()
+    return this.getAll()
+  }
+
+  /** Write updated code to disk and re-parse immediately. Returns updated list. */
+  save(id: string, code: string): PluginRecord[] {
+    const record = this.records.get(id)
+    if (!record) throw new Error(`Plugin not found: ${id}`)
+    writeFileSync(record.meta.filePath, code, 'utf8')
+    this.loadFile(record.meta.filePath)
+    return this.getAll()
+  }
+
+  /** Create a new plugin file, start watching it, return updated list. */
+  create(filename: string, code: string): PluginRecord[] {
+    const safe = filename.replace(/[^a-zA-Z0-9_-]/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '') || 'my-plugin'
+    const filePath = join(this.pluginsDir, `${safe}.js`)
+    writeFileSync(filePath, code, 'utf8')
+    this.loadFile(filePath)
+    watchFile(filePath, { interval: 1000 }, () => {
+      log.info('PluginManager: reloading', safe)
+      this.loadFile(filePath)
+      this.changeCallbacks.forEach(cb => cb())
+    })
+    return this.getAll()
+  }
+
+  getPluginsDir(): string {
+    return this.pluginsDir
+  }
+
+  onPluginsChanged(cb: () => void): () => void {
+    this.changeCallbacks.push(cb)
+    return () => { this.changeCallbacks = this.changeCallbacks.filter(c => c !== cb) }
+  }
+
+  shutdown(): void {
+    for (const record of this.records.values()) {
+      unwatchFile(record.meta.filePath)
+    }
+  }
+
+  private writeExamplePlugins(): void {
+    // Write only files that don't exist yet — safe to call on every launch
+    const files: Array<{ name: string; content: string }> = [
+      {
+        name: 'bot-filter.js',
+        content: `// @name Bot Filter
+// Hides messages from known bot accounts.
+// Add or remove bot usernames (lowercase) from the BOTS set below.
+
+const BOTS = new Set([
+  'nightbot',
+  'streamelements',
+  'streamlabs',
+  'moobot',
+  'fossabot',
+  'wizebot',
+  'botisimo',
+  'soundalerts',
+])
+
+export default function botFilter(msg) {
+  if (BOTS.has(msg.author.toLowerCase())) {
+    return { type: 'hide' }
+  }
+  return null
+}
+`
+      },
+      {
+        name: 'spam-filter.js',
+        content: `// @name Spam Filter
+// Hides messages that look like spam:
+//   - 70%+ uppercase letters
+//   - A single character repeated 6+ times (aaaaaa, !!!!!!)
+//   - Over 400 characters long
+
+export default function spamFilter(msg) {
+  const text = msg.text.trim()
+  if (!text) return null
+
+  // All-caps check (ignore short messages)
+  if (text.length > 10) {
+    const letters = text.replace(/[^a-zA-Z]/g, '')
+    if (letters.length > 5) {
+      const upperRatio = letters.replace(/[^A-Z]/g, '').length / letters.length
+      if (upperRatio >= 0.7) return { type: 'hide' }
+    }
+  }
+
+  // Repeated character spam
+  if (/(.)\\1{5,}/.test(text)) return { type: 'hide' }
+
+  // Wall of text
+  if (text.length > 400) return { type: 'hide' }
+
+  return null
+}
+`
+      },
+      {
+        name: 'vip-tagger.js',
+        content: `// @name VIP Tagger
+// Adds a purple "VIP" tag to messages from a configured list of users.
+// Edit VIP_USERS below (lowercase login names).
+
+const VIP_USERS = new Set([
+  'your_friend_here',
+])
+
+export default function vipTagger(msg) {
+  if (VIP_USERS.has(msg.author.toLowerCase())) {
+    return { type: 'tag', label: 'VIP', color: '#a78bfa' }
+  }
+  return null
+}
+`
+      },
+      {
+        name: 'keyword-highlight.js',
+        content: `// @name Keyword Highlight
+// Highlights messages containing any of the keywords below (case-insensitive).
+
+const KEYWORDS = [
+  'giveaway',
+  'clip that',
+  '!commands',
+]
+
+const COLOR = 'rgba(255, 200, 0, 0.15)'
+
+export default function keywordHighlight(msg) {
+  const lower = msg.text.toLowerCase()
+  for (const kw of KEYWORDS) {
+    if (lower.includes(kw.toLowerCase())) {
+      return { type: 'highlight', color: COLOR }
+    }
+  }
+  return null
+}
+`
+      },
+      {
+        name: 'song.js',
+        content: `// @name !song Command
+// Type !song in chat to post the currently playing Spotify track (Windows only).
+// The app reads the Spotify window title — no API key required.
+
+export default function song(msg) {
+  if (msg.text.trim().toLowerCase() === '!song') {
+    return { type: 'command', respond: '__song__' }
+  }
+  return null
+}
+`
+      },
+    ]
+
+    for (const file of files) {
+      const dest = join(this.pluginsDir, file.name)
+      if (existsSync(dest)) continue  // never overwrite user edits
+      try {
+        writeFileSync(dest, file.content, 'utf8')
+      } catch { /* ignore */ }
+    }
+  }
+}
+
+export const pluginManager = new PluginManager()

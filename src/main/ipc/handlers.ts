@@ -5,6 +5,7 @@ import { broadcaster } from './broadcaster'
 import { settingsStore } from '../store/SettingsStore'
 import { platformManager } from '../services/PlatformManager'
 import { emoteCacheManager } from '../emotes/EmoteCacheManager'
+import { pluginManager } from '../services/PluginManager'
 import { twitchAuth } from '../auth/TwitchAuth'
 import { youtubeAuth } from '../auth/YouTubeAuth'
 import { tokenStore } from '../auth/TokenStore'
@@ -14,7 +15,10 @@ import type {
   AuthLogoutPayload,
   FetchEmotesPayload,
   ShellOpenPayload,
-  ModActionPayload
+  ModActionPayload,
+  SavePluginPayload,
+  CreatePluginPayload,
+  TogglePluginPayload
 } from '../../shared/types/ipc'
 
 export function registerIpcHandlers(): void {
@@ -78,6 +82,12 @@ export function registerIpcHandlers(): void {
     await emoteCacheManager.fetchForChannel(payload)
   })
 
+  // Mod status hydration — renderer calls this on startup to recover statuses
+  // that were broadcast before the IPC listener was registered
+  ipcMain.handle(MAIN_CHANNELS.GET_SELF_MOD_STATUSES, () => {
+    return platformManager.getSelfModStatuses()
+  })
+
   // Mod actions
   ipcMain.handle(MAIN_CHANNELS.MOD_ACTION, async (_e, payload: ModActionPayload) => {
     try {
@@ -86,6 +96,56 @@ export function registerIpcHandlers(): void {
       log.error('Mod action failed:', payload.action, err)
       throw err
     }
+  })
+
+  // Media info (Windows: Spotify window title; cross-platform fallback = empty)
+  ipcMain.handle(MAIN_CHANNELS.MEDIA_GET_CURRENT, () => {
+    try {
+      const { execSync } = require('child_process') as typeof import('child_process')
+      if (process.platform === 'win32') {
+        const out = execSync(
+          'powershell -Command ' +
+          '"$ErrorActionPreference = \'SilentlyContinue\'; ' +
+          '$spotify = (Get-Process -Name Spotify -ErrorAction SilentlyContinue).MainWindowTitle; ' +
+          'if ($spotify) { $song = $spotify -replace \'^Spotify ?- ?\'; if ($song -ne \'\') { $song } }"',
+          { timeout: 3000, encoding: 'utf8' }
+        ).trim()
+        return out || ''
+      }
+      return ''
+    } catch {
+      return ''
+    }
+  })
+
+  // Plugins
+  ipcMain.handle(MAIN_CHANNELS.PLUGIN_APPLY, (_e, pmsg) => {
+    return pluginManager.applyToPluginMessage(pmsg)
+  })
+
+  ipcMain.handle(MAIN_CHANNELS.GET_PLUGINS, () => {
+    return pluginManager.getAll()
+  })
+
+  ipcMain.handle(MAIN_CHANNELS.SAVE_PLUGIN, (_e, payload: SavePluginPayload) => {
+    return pluginManager.save(payload.id, payload.code)
+  })
+
+  ipcMain.handle(MAIN_CHANNELS.CREATE_PLUGIN, (_e, payload: CreatePluginPayload) => {
+    return pluginManager.create(payload.filename, payload.code)
+  })
+
+  ipcMain.handle(MAIN_CHANNELS.OPEN_PLUGINS_FOLDER, () => {
+    shell.openPath(pluginManager.getPluginsDir())
+  })
+
+  ipcMain.handle(MAIN_CHANNELS.RELOAD_PLUGINS, () => {
+    pluginManager.load()
+    return pluginManager.getAll()
+  })
+
+  ipcMain.handle(MAIN_CHANNELS.TOGGLE_PLUGIN, (_e, payload: TogglePluginPayload) => {
+    return pluginManager.toggleEnabled(payload.id, payload.enabled)
   })
 
   // Shell

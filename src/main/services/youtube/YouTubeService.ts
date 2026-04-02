@@ -83,7 +83,7 @@ export class YouTubeChannel {
   }
 
   async sendMessage(text: string): Promise<void> {
-    if (!this.liveChatId) return
+    if (!this.liveChatId) throw new Error('YouTube channel not connected or no live stream')
     await youtubeApiClient.sendMessage(this.liveChatId, text)
   }
 

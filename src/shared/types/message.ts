@@ -1,4 +1,5 @@
 import type { EmoteData } from './emote'
+import type { PluginAction } from './plugin'
 
 export type Platform = 'twitch' | 'youtube' | 'kick' | 'tiktok'
 
@@ -11,6 +12,7 @@ export type MessageType =
   | 'raid'        // raid notification
   | 'announcement'// channel announcement
   | 'system'      // internal system message (e.g. "Connected to #channel")
+  | 'redeem'      // channel point redemption with text input
 
 export interface BadgeInfo {
   id: string
@@ -51,6 +53,8 @@ export interface NormalizedMessage {
   timestamp: number
   raw: string
   replyTo?: ReplyContext
+  customRewardId?: string
+  pluginAction?: PluginAction
 }
 
 export interface DeleteMessageEvent {

@@ -148,6 +148,7 @@ export default function Sidebar() {
               platformLabel={PLATFORM_INITIALS[channel.platform]}
               unread={unreadCounts[channel.id] ?? 0}
               status={status}
+              statusError={state?.error}
             />
           )
         })}
@@ -167,15 +168,17 @@ interface ChannelEntryProps {
   platformLabel?: string
   unread: number
   status?: string
+  statusError?: string
 }
 
 function ChannelEntry({
-  label, isActive, onClick, onRemove, platformColor, platformLabel, unread, status
+  label, isActive, onClick, onRemove, platformColor, platformLabel, unread, status, statusError
 }: ChannelEntryProps) {
   const [hovered, setHovered] = useState(false)
 
   const isLoading = status === 'connecting' || status === 'reconnecting'
   const isError = status === 'error' || status === 'ended'
+  const isOffline = status === 'offline'
 
   return (
     <div
@@ -228,7 +231,16 @@ function ChannelEntry({
         <Loader2 size={9} className="animate-spin" style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
       )}
       {isError && (
-        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--danger)', flexShrink: 0 }} />
+        <span
+          title={statusError ?? 'Connection error'}
+          style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--danger)', flexShrink: 0, cursor: 'help' }}
+        />
+      )}
+      {isOffline && (
+        <span
+          title={statusError ?? 'Not live'}
+          style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--text-muted)', flexShrink: 0, cursor: 'help' }}
+        />
       )}
       {unread > 0 && !isActive && (
         <span

@@ -7,6 +7,7 @@ export type ConnectionStatus =
   | 'reconnecting'
   | 'error'
   | 'ended'
+  | 'offline'
 
 export interface ChannelConfig {
   id: string           // internal unique key, e.g. "twitch:xqc"

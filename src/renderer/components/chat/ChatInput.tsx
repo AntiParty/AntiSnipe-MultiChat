@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { SendHorizonal, Lock } from 'lucide-react'
 import { useStore } from '../../store'
 import type { ChatterInfo } from '../../store/slices/chatSlice'
+import type { NormalizedMessage } from '@shared/types/message'
+import type { PluginMessage } from '@shared/types/plugin'
 
 interface ChatInputProps {
   channelId: string
@@ -121,15 +123,79 @@ export default function ChatInput({ channelId }: ChatInputProps) {
     setSuggestions([])
     setMentionStart(-1)
     setText('')
+    // Grab focus whenever the active channel changes (or on first mount)
+    inputRef.current?.focus()
   }, [channelId])
+
+  // Re-focus when the Electron window regains focus (e.g. alt-tab back)
+  useEffect(() => {
+    const onWindowFocus = () => {
+      const active = document.activeElement
+      if (!active || active === document.body || active === document.documentElement) {
+        inputRef.current?.focus()
+      }
+    }
+    window.addEventListener('focus', onWindowFocus)
+    return () => window.removeEventListener('focus', onWindowFocus)
+  }, [])
+
+  // Capture any printable key typed outside an input and redirect it here
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (sending) return
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+      if (e.key.length !== 1) return
+      e.preventDefault()
+      setText(prev => {
+        const newText = prev + e.key
+        requestAnimationFrame(() => {
+          const el = inputRef.current
+          if (el) {
+            el.focus()
+            el.setSelectionRange(newText.length, newText.length)
+          }
+          updateSuggestions(newText, newText.length)
+        })
+        return newText
+      })
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [sending, updateSuggestions])
 
   // ── Send ─────────────────────────────────────────────────────────────────
 
   const handleSend = async () => {
     if (!canSend) return
+    let messageToSend = text.trim()
+
+    // Run command plugins on !-prefixed messages before sending
+    if (messageToSend.startsWith('!')) {
+      const pmsg: PluginMessage = {
+        id: 'cmd', platform: channel?.platform ?? 'twitch',
+        channelId, author: '', authorDisplay: '',
+        text: messageToSend, messageType: 'chat',
+        badges: [], isMod: false, isSubscriber: false
+      }
+      const action = await window.chatBridge.invoke('plugins:apply', pmsg)
+      if (action?.type === 'command') {
+        let respond = action.respond
+        if (respond === '__song__') {
+          const song = await window.chatBridge.invoke('media:getCurrent')
+          respond = song || '(nothing playing)'
+        }
+        messageToSend = respond
+      } else if (action?.type === 'hide') {
+        setText(''); setSuggestions([]); setMentionStart(-1)
+        return
+      }
+    }
+
     setSending(true)
     try {
-      await window.chatBridge.invoke('chat:send', { channelId, message: text.trim() })
+      await window.chatBridge.invoke('chat:send', { channelId, message: messageToSend })
       setText('')
       setSuggestions([])
       setMentionStart(-1)

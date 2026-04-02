@@ -27,6 +27,15 @@ export function initIpcSync(): () => void {
     }
   })
 
+  // Hydrate mod status — the SELF_MOD_STATUS push event fires during the initial
+  // Twitch JOIN, before the renderer's IPC listener is registered, so we fetch
+  // the current statuses explicitly on startup.
+  bridge.invoke('mod:getSelfStatuses').then(statuses => {
+    for (const [channelId, isMod] of Object.entries(statuses)) {
+      useStore.getState().setSelfModStatus(channelId, isMod)
+    }
+  })
+
   // Incoming chat messages
   unsubscribers.push(
     bridge.on(RENDERER_CHANNELS.MESSAGE_BATCH, messages => {

@@ -6,7 +6,9 @@ import { registerIpcHandlers } from './ipc/handlers'
 import { broadcaster } from './ipc/broadcaster'
 import { platformManager } from './services/PlatformManager'
 import { emoteCacheManager } from './emotes/EmoteCacheManager'
+import { pluginManager } from './services/PluginManager'
 import { autoUpdaterManager } from './updater/AutoUpdater'
+import { RENDERER_CHANNELS } from '../shared/types/ipc'
 
 
 log.initialize({ preload: true })
@@ -90,6 +92,10 @@ app.whenReady().then(async () => {
 
   registerIpcHandlers()
   emoteCacheManager.loadFromDisk()
+  pluginManager.load()
+  pluginManager.onPluginsChanged(() => {
+    broadcaster.send(RENDERER_CHANNELS.PLUGINS_CHANGED, pluginManager.getAll())
+  })
   createWindow()
 
   // Re-connect saved channels
@@ -119,5 +125,6 @@ app.on('second-instance', () => {
 
 app.on('window-all-closed', () => {
   emoteCacheManager.shutdown()
+  pluginManager.shutdown()
   if (process.platform !== 'darwin') app.quit()
 })

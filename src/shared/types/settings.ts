@@ -75,6 +75,9 @@ export interface AppSettings {
   // Mod actions
   modButtons: ModButtonSettings
 
+  // Plugins
+  pluginMentionUsers: boolean
+
   // Window state
   windowBounds: WindowBounds
 }
@@ -114,5 +117,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
     showBan: true,
     timeoutPresets: [60, 600, 3600, 86400]
   },
+  pluginMentionUsers: false,
   windowBounds: { x: null, y: null, width: 420, height: 900 }
 }

@@ -26,6 +26,16 @@ export default function ChatPane() {
     measureElement: el => el.getBoundingClientRect().height
   })
 
+  // Invalidate cached row heights when container is resized (e.g. window resize)
+  // so word-wrapped messages get re-measured and positions recalculate correctly.
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => virtualizer.measure())
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [virtualizer])
+
   useEffect(() => {
     if (isAtBottom && messages.length > 0 && !hoveredRef.current) {
       virtualizer.scrollToIndex(messages.length - 1, { align: 'end', behavior: smoothScroll ? 'smooth' : 'auto' })
@@ -61,6 +71,7 @@ export default function ChatPane() {
   const rowPaddingY = messageSpacing === 'compact' ? '0px' : messageSpacing === 'comfortable' ? '3px' : '1px'
 
   return (
+    <>
     <div
       className="flex flex-col flex-1 min-h-0"
       style={{ background: 'var(--surface-0)', '--row-padding-y': rowPaddingY } as React.CSSProperties}
@@ -112,5 +123,6 @@ export default function ChatPane() {
 
       {canSend && <ChatInput channelId={activeChannelId} />}
     </div>
+    </>
   )
 }

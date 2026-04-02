@@ -180,8 +180,67 @@
   font-size: 0.9em;
 }
 
+/* Channel point redemptions */
+.messageRow.redeem {
+  background-color: rgba(255, 184, 0, 0.05);
+  border-left: 2px solid rgba(255, 184, 0, 0.45);
+  padding-left: 6px;
+}
+
+/* Plugin-injected tag badge */
+.pluginTag {
+  display: inline-block;
+  font-size: 0.73em;
+  padding: 0 4px;
+  background: rgba(100, 100, 100, 0.15);
+  color: var(--text-secondary);
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+  position: relative;
+  top: -1px;
+  font-weight: 600;
+}
+
+.redeemTag {
+  display: inline-block;
+  font-size: 0.73em;
+  padding: 0 4px;
+  background: rgba(255, 184, 0, 0.12);
+  color: rgb(220, 160, 0);
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+  position: relative;
+  top: -1px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
 /* ─── Mod action buttons ─────────────────────────────────────────────────── */
 
+/* Left-side always-visible mod action strip */
+.modActionsLeft {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+  margin-right: 4px;
+  opacity: 0.7;
+  transition: opacity 0.12s;
+}
+
+.modActionsLeft:hover {
+  opacity: 1;
+}
+
+/* Use a more visible color for always-on mod buttons */
+.modActionsLeft .modBtn {
+  color: var(--text-secondary);
+}
+
+/* Legacy inline mod actions (kept for reference, unused) */
 .modActions {
   display: inline-flex;
   align-items: center;
@@ -226,6 +285,22 @@
   bottom: calc(100% + 3px);
   left: 50%;
   transform: translateX(-50%);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  overflow: hidden;
+  min-width: 52px;
+}
+
+/* Timeout preset menu for left-side buttons — opens to the right */
+.timeoutMenuLeft {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 4px;

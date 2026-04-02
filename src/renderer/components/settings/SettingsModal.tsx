@@ -7,12 +7,14 @@ import SettingsEmotes from './SettingsEmotes'
 import SettingsFilters from './SettingsFilters'
 import SettingsAuth from './SettingsAuth'
 import SettingsMod from './SettingsMod'
+import SettingsPlugins from './SettingsPlugins'
 
 const TABS = [
   { id: 'general', label: 'General', Component: SettingsGeneral },
   { id: 'emotes', label: 'Emotes', Component: SettingsEmotes },
   { id: 'filters', label: 'Filters', Component: SettingsFilters },
   { id: 'moderation', label: 'Moderation', Component: SettingsMod },
+  { id: 'plugins', label: 'Plugins', Component: SettingsPlugins },
   { id: 'auth', label: 'Auth', Component: SettingsAuth }
 ]
 

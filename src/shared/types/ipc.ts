@@ -3,6 +3,7 @@ import type { ConnectionState, ConnectChannelPayload, DisconnectChannelPayload }
 import type { AppSettings } from './settings'
 import type { EmoteData } from './emote'
 import type { Platform } from './message'
+import type { PluginRecord } from './plugin'
 
 // ─── Renderer → Main (invoke/handle) ───────────────────────────────────────
 
@@ -19,6 +20,15 @@ export const MAIN_CHANNELS = {
   GET_CONNECTION_STATES: 'connections:getAll',
   FETCH_EMOTES: 'emotes:fetch',
   MOD_ACTION: 'mod:action',
+  GET_SELF_MOD_STATUSES: 'mod:getSelfStatuses',
+  MEDIA_GET_CURRENT: 'media:getCurrent',
+  PLUGIN_APPLY: 'plugins:apply',
+  GET_PLUGINS: 'plugins:getAll',
+  SAVE_PLUGIN: 'plugins:save',
+  CREATE_PLUGIN: 'plugins:create',
+  OPEN_PLUGINS_FOLDER: 'plugins:openFolder',
+  RELOAD_PLUGINS: 'plugins:reload',
+  TOGGLE_PLUGIN: 'plugins:toggle',
   SHELL_OPEN_EXTERNAL: 'shell:openExternal',
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
@@ -41,6 +51,7 @@ export const RENDERER_CHANNELS = {
   UPDATE_DOWNLOADED: 'updater:downloaded',
   PLATFORM_ERROR: 'error:platform',
   SELF_MOD_STATUS: 'mod:selfStatus',
+  PLUGINS_CHANGED: 'plugins:changed',
 } as const
 
 export type RendererChannel = (typeof RENDERER_CHANNELS)[keyof typeof RENDERER_CHANNELS]
@@ -111,6 +122,21 @@ export interface SelfModStatusPayload {
   isMod: boolean
 }
 
+export interface SavePluginPayload {
+  id: string
+  code: string
+}
+
+export interface CreatePluginPayload {
+  filename: string  // without .js extension
+  code: string
+}
+
+export interface TogglePluginPayload {
+  id: string
+  enabled: boolean
+}
+
 // ─── Bridge type exposed via contextBridge ──────────────────────────────────
 
 export interface ChatBridgeInvokeMap {
@@ -126,6 +152,15 @@ export interface ChatBridgeInvokeMap {
   [MAIN_CHANNELS.GET_CONNECTION_STATES]: [undefined, ConnectionState[]]
   [MAIN_CHANNELS.FETCH_EMOTES]: [FetchEmotesPayload, void]
   [MAIN_CHANNELS.MOD_ACTION]: [ModActionPayload, void]
+  [MAIN_CHANNELS.GET_SELF_MOD_STATUSES]: [undefined, Record<string, boolean>]
+  [MAIN_CHANNELS.MEDIA_GET_CURRENT]: [undefined, string]
+  [MAIN_CHANNELS.PLUGIN_APPLY]: [import('./plugin').PluginMessage, import('./plugin').PluginAction | null]
+  [MAIN_CHANNELS.GET_PLUGINS]: [undefined, PluginRecord[]]
+  [MAIN_CHANNELS.SAVE_PLUGIN]: [SavePluginPayload, PluginRecord[]]
+  [MAIN_CHANNELS.CREATE_PLUGIN]: [CreatePluginPayload, PluginRecord[]]
+  [MAIN_CHANNELS.OPEN_PLUGINS_FOLDER]: [undefined, void]
+  [MAIN_CHANNELS.RELOAD_PLUGINS]: [undefined, PluginRecord[]]
+  [MAIN_CHANNELS.TOGGLE_PLUGIN]: [TogglePluginPayload, PluginRecord[]]
   [MAIN_CHANNELS.SHELL_OPEN_EXTERNAL]: [ShellOpenPayload, void]
   [MAIN_CHANNELS.WINDOW_MINIMIZE]: [undefined, void]
   [MAIN_CHANNELS.WINDOW_MAXIMIZE]: [undefined, void]
@@ -144,6 +179,7 @@ export interface ChatBridgeEventMap {
   [RENDERER_CHANNELS.UPDATE_DOWNLOADED]: { version: string }
   [RENDERER_CHANNELS.PLATFORM_ERROR]: PlatformErrorPayload
   [RENDERER_CHANNELS.SELF_MOD_STATUS]: SelfModStatusPayload
+  [RENDERER_CHANNELS.PLUGINS_CHANGED]: PluginRecord[]
 }
 
 export interface ChatBridge {

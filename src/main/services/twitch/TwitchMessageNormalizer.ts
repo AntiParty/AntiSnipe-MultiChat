@@ -175,6 +175,9 @@ export function normalizeTwitchMessage(
   const isHighlighted = keywordAlerts.some(kw => rawLower.includes(kw.toLowerCase()))
   const isMention = mentionKeywords.some(kw => rawLower.includes(kw.toLowerCase()))
 
+  const customRewardId = tags['custom-reward-id'] || (tags['msg-id'] === 'highlighted-message' ? 'highlighted-message' : undefined)
+  const messageType: MessageType = customRewardId ? 'redeem' : isAction ? 'action' : 'chat'
+
   return {
     id: msgId,
     platform: 'twitch',
@@ -186,14 +189,15 @@ export function normalizeTwitchMessage(
     authorColor,
     parts,
     badges,
-    messageType: isAction ? 'action' : 'chat',
+    messageType,
     isHighlighted,
     isMention,
     isAction,
     isDeleted: false,
     timestamp,
     raw,
-    replyTo
+    replyTo,
+    customRewardId
   }
 }
 

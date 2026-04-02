@@ -4,7 +4,7 @@ import { Trash2, Clock, Ban, ShieldOff } from 'lucide-react'
 import MessageContent from './MessageContent'
 import { PlatformLogo } from '../ui/PlatformLogos'
 import styles from '../../styles/chat.module.css'
-import { colorHash } from '../../utils/colorHash'
+import { colorHash, readableColor } from '../../utils/colorHash'
 import { formatTimestamp } from '../../utils/timeFormat'
 import { useStore } from '../../store'
 import type { NormalizedMessage, BadgeInfo } from '@shared/types/message'
@@ -86,7 +86,6 @@ function MessageRow({ message, index }: MessageRowProps) {
   const modButtons = useStore(s => s.settings.modButtons)
   const isMod = useStore(s => s.selfModByChannel[message.channelId] ?? false)
 
-  const [hovered, setHovered] = useState(false)
   const [timeoutOpen, setTimeoutOpen] = useState(false)
 
   const { messageType, isHighlighted, isMention, isAction, isDeleted, raw } = message
@@ -109,6 +108,11 @@ function MessageRow({ message, index }: MessageRowProps) {
     [message.channelId, message.authorId, message.authorName, message.id]
   )
 
+  const pluginAction = message.pluginAction
+
+  // Plugin: hide message
+  if (pluginAction?.type === 'hide') return null
+
   // Hide command messages if setting enabled
   if (hideCommands && raw && (raw.startsWith('/') || raw.startsWith('!'))) {
     return null
@@ -129,7 +133,12 @@ function MessageRow({ message, index }: MessageRowProps) {
     return <div className={styles.systemMessage}><MessageContent parts={message.parts} /></div>
   }
 
-  const authorColor = message.authorColor || colorHash(message.authorName)
+  const isRedeem = messageType === 'redeem'
+
+  // Boost dark Twitch colors to be readable on dark backgrounds
+  const authorColor = message.authorColor
+    ? readableColor(message.authorColor)
+    : colorHash(message.authorName)
 
   let displayedName: string
   if (usernameDisplay === 'login') {
@@ -140,29 +149,29 @@ function MessageRow({ message, index }: MessageRowProps) {
     displayedName = message.authorDisplayName
   }
 
-  const rowBg = alternatingRows && index % 2 === 1 ? 'var(--surface-1)' : undefined
+  const rowBg = pluginAction?.type === 'highlight'
+    ? pluginAction.color
+    : alternatingRows && index % 2 === 1 ? 'var(--surface-1)' : undefined
 
-  // Only show mod actions for Twitch chat messages with a real Twitch message ID.
-  // Self-injected optimistic messages use a "self-..." synthetic ID and are never
-  // stored on Twitch's side, so delete/timeout/ban against them would 404.
+  // Show mod actions for mods on real (non-optimistic) Twitch messages
   const hasRealMessageId = !message.id.startsWith('self-')
-  const showModActions = isMod && message.platform === 'twitch' && message.authorId && !isDeleted && hasRealMessageId
+  const showModActions = isMod && message.platform === 'twitch' && !!message.authorId && hasRealMessageId
 
   return (
     <div
       className={clsx(styles.messageRow, {
-        [styles.highlighted]: isHighlighted && !isMention,
+        [styles.highlighted]: isHighlighted && !isMention && !isRedeem,
         [styles.mention]: isMention,
         [styles.deleted]: isDeleted,
-        [styles.action]: isAction
+        [styles.action]: isAction,
+        [styles.redeem]: isRedeem
       })}
       style={{
         background: rowBg,
         paddingTop: 'var(--row-padding-y, 1px)',
         paddingBottom: 'var(--row-padding-y, 1px)'
       }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setTimeoutOpen(false) }}
+      onMouseLeave={() => setTimeoutOpen(false)}
     >
       {showReplyContext && message.replyTo && (
         <div className={styles.replyBar}>
@@ -175,107 +184,129 @@ function MessageRow({ message, index }: MessageRowProps) {
         </div>
       )}
 
-      {showTimestamps && (
-        <span className={styles.timestamp}>
-          {formatTimestamp(message.timestamp, timestampFormat)}
-        </span>
-      )}
+      {/* Flex row: [mod buttons] [inline message content] */}
+      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
 
-      {showPlatformBadge && (
-        <span
-          title={PLATFORM_LABELS[message.platform]}
-          style={{
-            display: 'inline-block',
-            verticalAlign: 'middle',
-            marginRight: '3px',
-            position: 'relative',
-            top: '-1px',
-            color: PLATFORM_DOT_COLORS[message.platform],
-            lineHeight: 0
-          }}
-        >
-          <PlatformLogo platform={message.platform} size={11} />
-        </span>
-      )}
-
-      {showBadges && <InlineBadges badges={message.badges} />}
-
-      <span
-        className={styles.authorName}
-        style={{ color: authorColor }}
-        title={`${message.authorName} (${message.platform})`}
-      >
-        {displayedName}
-      </span>
-
-      <span className={styles.colon}>: </span>
-
-      <span className={clsx(styles.messageBody, 'select-text')}>
-        <MessageContent parts={message.parts} />
-      </span>
-
-      {showModActions && hovered && (
-        <span className={styles.modActions}>
-          {modButtons.showDelete && (
-            <button
-              className={styles.modBtn}
-              title="Delete message"
-              onClick={e => { e.stopPropagation(); fireModAction('delete') }}
-            >
-              <Trash2 size={10} />
-            </button>
-          )}
-
-          {modButtons.showTimeout && (
-            <span style={{ position: 'relative', display: 'inline-flex' }}>
+        {showModActions && (
+          <span className={styles.modActionsLeft}>
+            {modButtons.showDelete && !isDeleted && (
               <button
                 className={styles.modBtn}
-                title="Timeout user"
-                onClick={e => { e.stopPropagation(); setTimeoutOpen(v => !v) }}
+                title="Delete message"
+                onClick={e => { e.stopPropagation(); fireModAction('delete') }}
               >
-                <Clock size={10} />
+                <Trash2 size={10} />
               </button>
-              {timeoutOpen && (
-                <span className={styles.timeoutMenu}>
-                  {modButtons.timeoutPresets.map(secs => (
-                    <button
-                      key={secs}
-                      className={styles.timeoutOption}
-                      onClick={e => {
-                        e.stopPropagation()
-                        setTimeoutOpen(false)
-                        fireModAction('timeout', secs)
-                      }}
-                    >
-                      {formatDuration(secs)}
-                    </button>
-                  ))}
-                </span>
-              )}
+            )}
+
+            {modButtons.showTimeout && !isDeleted && (
+              <span style={{ position: 'relative', display: 'inline-flex' }}>
+                <button
+                  className={styles.modBtn}
+                  title="Timeout user"
+                  onClick={e => { e.stopPropagation(); setTimeoutOpen(v => !v) }}
+                >
+                  <Clock size={10} />
+                </button>
+                {timeoutOpen && (
+                  <span className={styles.timeoutMenuLeft}>
+                    {modButtons.timeoutPresets.map(secs => (
+                      <button
+                        key={secs}
+                        className={styles.timeoutOption}
+                        onClick={e => {
+                          e.stopPropagation()
+                          setTimeoutOpen(false)
+                          fireModAction('timeout', secs)
+                        }}
+                      >
+                        {formatDuration(secs)}
+                      </button>
+                    ))}
+                  </span>
+                )}
+              </span>
+            )}
+
+            {modButtons.showBan && (
+              isDeleted ? (
+                <button
+                  className={styles.modBtn}
+                  title="Unban user"
+                  onClick={e => { e.stopPropagation(); fireModAction('unban') }}
+                >
+                  <ShieldOff size={10} />
+                </button>
+              ) : (
+                <button
+                  className={clsx(styles.modBtn, styles.modBtnDanger)}
+                  title="Ban user"
+                  onClick={e => { e.stopPropagation(); fireModAction('ban') }}
+                >
+                  <Ban size={10} />
+                </button>
+              )
+            )}
+          </span>
+        )}
+
+        {/* Inline message content */}
+        <span style={{ flex: 1, minWidth: 0 }}>
+          {showTimestamps && (
+            <span className={styles.timestamp}>
+              {formatTimestamp(message.timestamp, timestampFormat)}
             </span>
           )}
 
-          {modButtons.showBan && (
-            isDeleted ? (
-              <button
-                className={styles.modBtn}
-                title="Unban user"
-                onClick={e => { e.stopPropagation(); fireModAction('unban') }}
-              >
-                <ShieldOff size={10} />
-              </button>
-            ) : (
-              <button
-                className={clsx(styles.modBtn, styles.modBtnDanger)}
-                title="Ban user"
-                onClick={e => { e.stopPropagation(); fireModAction('ban') }}
-              >
-                <Ban size={10} />
-              </button>
-            )
+          {showPlatformBadge && (
+            <span
+              title={PLATFORM_LABELS[message.platform]}
+              style={{
+                display: 'inline-block',
+                verticalAlign: 'middle',
+                marginRight: '3px',
+                position: 'relative',
+                top: '-1px',
+                color: PLATFORM_DOT_COLORS[message.platform],
+                lineHeight: 0
+              }}
+            >
+              <PlatformLogo platform={message.platform} size={11} />
+            </span>
           )}
+
+          {pluginAction?.type === 'tag' && (
+            <span
+              className={styles.pluginTag}
+              style={{ background: pluginAction.color ? `${pluginAction.color}22` : undefined, color: pluginAction.color }}
+            >
+              {pluginAction.label}
+            </span>
+          )}
+
+          {showBadges && <InlineBadges badges={message.badges} />}
+
+          {isRedeem && (
+            <span className={styles.redeemTag}>
+              {message.customRewardId === 'highlighted-message' ? '✦ Highlight' : '★ Redeem'}
+            </span>
+          )}
+
+          <span
+            className={styles.authorName}
+            style={{ color: authorColor }}
+            title={`${message.authorName} (${message.platform})`}
+          >
+            {displayedName}
+          </span>
+
+          <span className={styles.colon}>: </span>
+
+          <span className={clsx(styles.messageBody, 'select-text')}>
+            <MessageContent parts={message.parts} />
+          </span>
         </span>
-      )}
+      </div>
     </div>
   )
 }

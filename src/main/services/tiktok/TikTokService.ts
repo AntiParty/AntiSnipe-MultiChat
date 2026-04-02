@@ -109,10 +109,16 @@ export class TikTokService {
       log.info(`TikTok connected to ${slug}`)
       this.onStatus(channelId, 'connected')
     } catch (err) {
-      log.error(`TikTok failed to connect to ${slug}:`, err)
       this.channels.delete(channelId)
       const msg = err instanceof Error ? err.message : String(err)
-      this.onStatus(channelId, 'error', msg)
+      const isOffline = msg.toLowerCase().includes("isn't online") || msg.toLowerCase().includes('not online')
+      if (isOffline) {
+        log.info(`TikTok: ${slug} is not live`)
+        this.onStatus(channelId, 'offline', `${slug} is not currently live`)
+      } else {
+        log.error(`TikTok failed to connect to ${slug}:`, err)
+        this.onStatus(channelId, 'error', msg)
+      }
     }
   }
 

@@ -95,7 +95,8 @@ export class TwitchService {
 
   sendMessage(channelId: string, text: string): void {
     const handle = this.channels.get(channelId)
-    if (!handle || this.ws?.readyState !== WebSocket.OPEN) return
+    if (!handle) throw new Error(`Channel ${channelId} not connected`)
+    if (this.ws?.readyState !== WebSocket.OPEN) throw new Error('Not connected to Twitch IRC')
     this.ws.send(`PRIVMSG #${handle.slug} :${text}\r\n`)
     // Record for echo deduplication — skip /commands since Twitch never echoes them
     if (!text.startsWith('/')) {
@@ -335,6 +336,10 @@ export class TwitchService {
     this.selfModStatus.clear()
   }
 
+  getSelfModStatuses(): Record<string, boolean> {
+    return Object.fromEntries(this.selfModStatus)
+  }
+
   getSelfBadgeTag(channelId: string): string {
     return this.selfBadgeTags.get(channelId) ?? ''
   }
@@ -390,7 +395,8 @@ export class TwitchService {
       if (!payload.messageId) throw new Error('messageId required for delete action')
       const url = `${TWITCH_HELIX_BASE}/chat/messages?broadcaster_id=${handle.broadcasterId}&moderator_id=${moderatorId}&message_id=${payload.messageId}`
       const resp = await net.fetch(url, { method: 'DELETE', headers })
-      if (!resp.ok) {
+      if (!resp.ok && resp.status !== 404) {
+        // 404 means the message was already deleted or timed out — treat as success
         const text = await resp.text()
         throw new Error(`Delete message failed: ${resp.status} ${text}`)
       }
