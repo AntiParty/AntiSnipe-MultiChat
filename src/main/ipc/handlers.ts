@@ -6,6 +6,7 @@ import { settingsStore } from '../store/SettingsStore'
 import { platformManager } from '../services/PlatformManager'
 import { emoteCacheManager } from '../emotes/EmoteCacheManager'
 import { pluginManager } from '../services/PluginManager'
+import { autoUpdaterManager } from '../updater/AutoUpdater'
 import { twitchAuth } from '../auth/TwitchAuth'
 import { youtubeAuth } from '../auth/YouTubeAuth'
 import { tokenStore } from '../auth/TokenStore'
@@ -18,7 +19,8 @@ import type {
   ModActionPayload,
   SavePluginPayload,
   CreatePluginPayload,
-  TogglePluginPayload
+  TogglePluginPayload,
+  UserCardPayload
 } from '../../shared/types/ipc'
 
 export function registerIpcHandlers(): void {
@@ -146,6 +148,27 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(MAIN_CHANNELS.TOGGLE_PLUGIN, (_e, payload: TogglePluginPayload) => {
     return pluginManager.toggleEnabled(payload.id, payload.enabled)
+  })
+
+  ipcMain.handle(MAIN_CHANNELS.GET_VIEWER_COUNTS, () => {
+    return platformManager.getViewerCounts()
+  })
+
+  ipcMain.handle(MAIN_CHANNELS.GET_RECENT_MESSAGES, (_e, payload: { channelId: string }) => {
+    return platformManager.getRecentMessages(payload.channelId)
+  })
+
+  ipcMain.handle(MAIN_CHANNELS.GET_USER_CARD, (_e, payload: UserCardPayload) => {
+    return platformManager.getUserCard(payload)
+  })
+
+  // Updater
+  ipcMain.handle(MAIN_CHANNELS.UPDATE_CHECK, async () => {
+    await autoUpdaterManager.checkForUpdates()
+  })
+
+  ipcMain.handle(MAIN_CHANNELS.UPDATE_INSTALL, () => {
+    autoUpdaterManager.installAndRestart()
   })
 
   // Shell

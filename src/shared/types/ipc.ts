@@ -29,7 +29,12 @@ export const MAIN_CHANNELS = {
   OPEN_PLUGINS_FOLDER: 'plugins:openFolder',
   RELOAD_PLUGINS: 'plugins:reload',
   TOGGLE_PLUGIN: 'plugins:toggle',
+  GET_VIEWER_COUNTS: 'streams:viewerCounts',
+  GET_RECENT_MESSAGES: 'chat:getRecentMessages',
+  GET_USER_CARD: 'twitch:getUserCard',
   SHELL_OPEN_EXTERNAL: 'shell:openExternal',
+  UPDATE_CHECK: 'updater:check',
+  UPDATE_INSTALL: 'updater:install',
   WINDOW_MINIMIZE: 'window:minimize',
   WINDOW_MAXIMIZE: 'window:maximize',
   WINDOW_CLOSE: 'window:close',
@@ -49,9 +54,12 @@ export const RENDERER_CHANNELS = {
   SETTINGS_UPDATED: 'settings:updated',
   UPDATE_AVAILABLE: 'updater:available',
   UPDATE_DOWNLOADED: 'updater:downloaded',
+  UPDATE_NOT_AVAILABLE: 'updater:notAvailable',
+  UPDATE_ERROR: 'updater:error',
   PLATFORM_ERROR: 'error:platform',
   SELF_MOD_STATUS: 'mod:selfStatus',
   PLUGINS_CHANGED: 'plugins:changed',
+  RECENT_MESSAGES: 'chat:recentMessages',
 } as const
 
 export type RendererChannel = (typeof RENDERER_CHANNELS)[keyof typeof RENDERER_CHANNELS]
@@ -137,6 +145,22 @@ export interface TogglePluginPayload {
   enabled: boolean
 }
 
+export interface UserCardPayload {
+  userId: string
+  channelId: string
+  login: string
+}
+
+export interface UserCardData {
+  userId: string
+  login: string
+  displayName: string
+  profileImageUrl: string
+  followedAt: string | null   // ISO date string, null if not following
+  subTier: string | null      // '1000', '2000', '3000', or null
+  subMonths: number | null
+}
+
 // ─── Bridge type exposed via contextBridge ──────────────────────────────────
 
 export interface ChatBridgeInvokeMap {
@@ -161,7 +185,12 @@ export interface ChatBridgeInvokeMap {
   [MAIN_CHANNELS.OPEN_PLUGINS_FOLDER]: [undefined, void]
   [MAIN_CHANNELS.RELOAD_PLUGINS]: [undefined, PluginRecord[]]
   [MAIN_CHANNELS.TOGGLE_PLUGIN]: [TogglePluginPayload, PluginRecord[]]
+  [MAIN_CHANNELS.GET_VIEWER_COUNTS]: [undefined, Record<string, number>]
+  [MAIN_CHANNELS.GET_RECENT_MESSAGES]: [{ channelId: string }, NormalizedMessage[]]
+  [MAIN_CHANNELS.GET_USER_CARD]: [UserCardPayload, UserCardData | null]
   [MAIN_CHANNELS.SHELL_OPEN_EXTERNAL]: [ShellOpenPayload, void]
+  [MAIN_CHANNELS.UPDATE_CHECK]: [undefined, void]
+  [MAIN_CHANNELS.UPDATE_INSTALL]: [undefined, void]
   [MAIN_CHANNELS.WINDOW_MINIMIZE]: [undefined, void]
   [MAIN_CHANNELS.WINDOW_MAXIMIZE]: [undefined, void]
   [MAIN_CHANNELS.WINDOW_CLOSE]: [undefined, void]
@@ -177,9 +206,12 @@ export interface ChatBridgeEventMap {
   [RENDERER_CHANNELS.SETTINGS_UPDATED]: AppSettings
   [RENDERER_CHANNELS.UPDATE_AVAILABLE]: { version: string }
   [RENDERER_CHANNELS.UPDATE_DOWNLOADED]: { version: string }
+  [RENDERER_CHANNELS.UPDATE_NOT_AVAILABLE]: Record<string, never>
+  [RENDERER_CHANNELS.UPDATE_ERROR]: { message: string }
   [RENDERER_CHANNELS.PLATFORM_ERROR]: PlatformErrorPayload
   [RENDERER_CHANNELS.SELF_MOD_STATUS]: SelfModStatusPayload
   [RENDERER_CHANNELS.PLUGINS_CHANGED]: PluginRecord[]
+  [RENDERER_CHANNELS.RECENT_MESSAGES]: { channelId: string; messages: NormalizedMessage[] }
 }
 
 export interface ChatBridge {

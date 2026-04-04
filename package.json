@@ -30,7 +30,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "PLACEHOLDER",
+        "owner": "Antiparty",
         "repo": "AntiSnipe-MultiChat"
       }
     ],

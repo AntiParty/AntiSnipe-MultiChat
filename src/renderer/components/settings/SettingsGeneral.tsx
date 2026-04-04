@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useSettings } from '../../hooks/useSettings'
+import { useStore } from '../../store'
 import Toggle from '../ui/Toggle'
 import Slider from '../ui/Slider'
 import type { Theme, MessageSpacing, TimestampFormat, UsernameDisplay, DeletedMessageStyle } from '@shared/types/settings'
@@ -61,6 +63,20 @@ function SegmentedControl<T extends string>({
 
 export default function SettingsGeneral() {
   const { settings, save } = useSettings()
+  const updateStatus = useStore(s => s.updateStatus)
+  const setUpdateStatus = useStore(s => s.setUpdateStatus)
+  const [justChecked, setJustChecked] = useState(false)
+
+  async function handleCheckForUpdates() {
+    setJustChecked(false)
+    setUpdateStatus({ checking: true, error: null })
+    await window.chatBridge.invoke('updater:check')
+    setJustChecked(true)
+  }
+
+  function handleInstall() {
+    window.chatBridge.invoke('updater:install')
+  }
 
   return (
     <div className="space-y-7">
@@ -221,6 +237,31 @@ export default function SettingsGeneral() {
         </div>
       </section>
 
+      {/* ── Chat History ── */}
+      <section>
+        <SectionHeader>Chat History</SectionHeader>
+        <div className="space-y-3">
+          <OptionRow label="Load recent messages" description="Fetch last 100 messages when joining a channel">
+            <Toggle
+              checked={settings.loadRecentMessages}
+              onCheckedChange={v => save({ loadRecentMessages: v })}
+            />
+          </OptionRow>
+          <OptionRow label="Clickable usernames" description="Click a Twitch username to open their profile">
+            <Toggle
+              checked={settings.clickableUsernames}
+              onCheckedChange={v => save({ clickableUsernames: v })}
+            />
+          </OptionRow>
+          <OptionRow label="Show viewer count" description="Display live viewer count in sidebar and All tab">
+            <Toggle
+              checked={settings.showViewerCount}
+              onCheckedChange={v => save({ showViewerCount: v })}
+            />
+          </OptionRow>
+        </div>
+      </section>
+
       {/* ── Performance ── */}
       <section>
         <SectionHeader>Performance</SectionHeader>
@@ -233,6 +274,59 @@ export default function SettingsGeneral() {
           onChange={v => save({ maxMessagesPerChannel: v })}
           formatValue={v => v.toLocaleString()}
         />
+      </section>
+
+      {/* ── Updates ── */}
+      <section>
+        <SectionHeader>Updates</SectionHeader>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={updateStatus.downloaded ? handleInstall : handleCheckForUpdates}
+              disabled={updateStatus.checking}
+              style={{
+                padding: '5px 14px',
+                fontSize: '11px',
+                fontWeight: 600,
+                borderRadius: '4px',
+                border: 'none',
+                cursor: updateStatus.checking ? 'default' : 'pointer',
+                background: updateStatus.downloaded ? 'var(--accent)' : 'var(--surface-3)',
+                color: updateStatus.downloaded ? '#fff' : 'var(--text-primary)',
+                opacity: updateStatus.checking ? 0.6 : 1,
+                transition: 'background 0.1s, opacity 0.1s'
+              }}
+            >
+              {updateStatus.checking
+                ? 'Checking…'
+                : updateStatus.downloaded
+                  ? 'Restart & Install'
+                  : 'Check for Updates'}
+            </button>
+
+            {/* Status text */}
+            {updateStatus.error && (
+              <span style={{ fontSize: '11px', color: 'var(--danger)' }}>
+                Error: {updateStatus.error.slice(0, 60)}
+              </span>
+            )}
+            {!updateStatus.error && updateStatus.downloaded && (
+              <span style={{ fontSize: '11px', color: 'var(--accent)' }}>
+                v{updateStatus.downloaded} ready to install
+              </span>
+            )}
+            {!updateStatus.error && !updateStatus.downloaded && updateStatus.available && (
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                v{updateStatus.available} downloading…
+              </span>
+            )}
+            {!updateStatus.error && !updateStatus.downloaded && !updateStatus.available && justChecked && (
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                You're up to date
+              </span>
+            )}
+          </div>
+        </div>
       </section>
 
     </div>

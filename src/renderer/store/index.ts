@@ -5,7 +5,7 @@ import type { ChannelsSlice } from './slices/channelsSlice'
 import type { SettingsSlice } from './slices/settingsSlice'
 import type { AuthSlice } from './slices/authSlice'
 import type { EmoteData } from '@shared/types/emote'
-import type { MessagePart } from '@shared/types/message'
+import type { NormalizedMessage, MessagePart } from '@shared/types/message'
 import { DEFAULT_SETTINGS } from '@shared/types/settings'
 
 function emotePriority(provider: EmoteData['provider']): number {
@@ -34,9 +34,18 @@ function retokenizeParts(parts: MessagePart[], emoteMap: Record<string, EmoteDat
 // Keep only the N most-recently-seen chatters per channel
 const MAX_CHATTERS = 500
 
+export interface UpdateStatus {
+  checking: boolean
+  available: string | null   // version string if update available but not yet downloaded
+  downloaded: string | null  // version string if downloaded and ready to install
+  error: string | null
+}
+
 export type RootState = ChatSlice & ChannelsSlice & SettingsSlice & AuthSlice & {
   windowFocused: boolean
   setWindowFocused: (v: boolean) => void
+  updateStatus: UpdateStatus
+  setUpdateStatus: (patch: Partial<UpdateStatus>) => void
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,6 +62,7 @@ function buildChatSlice(set: SetState): ChatSlice {
     chattersByChannel: {},
     activeChannelId: 'all',
     unreadCounts: {},
+    viewerCountsByChannel: {},
     addMessages: messages =>
       set(state => {
         for (const msg of messages) {
@@ -108,6 +118,18 @@ function buildChatSlice(set: SetState): ChatSlice {
       }),
     setSelfModStatus: (channelId, isMod) =>
       set(state => { state.selfModByChannel[channelId] = isMod }),
+    setViewerCounts: counts =>
+      set(state => { state.viewerCountsByChannel = counts }),
+    prependMessages: (channelId, messages) =>
+      set(state => {
+        const existing = state.messagesByChannel[channelId] ?? []
+        const existingIds = new Set(existing.map((m: NormalizedMessage) => m.id))
+        const fresh = messages.filter((m: NormalizedMessage) => !existingIds.has(m.id))
+        if (fresh.length > 0) {
+          state.messagesByChannel[channelId] = [...fresh, ...existing]
+        }
+        // No unread increment for historical messages
+      }),
     setChannelEmotes: (channelId, emotes) =>
       set(state => {
         const sorted = [...emotes].sort((a, b) => emotePriority(a.provider) - emotePriority(b.provider))
@@ -138,6 +160,7 @@ function buildChannelsSlice(set: SetState): ChannelsSlice {
       set(state => {
         state.channels = state.channels.filter(c => c.id !== channelId)
         delete state.connectionStates[channelId]
+        delete state.viewerCountsByChannel[channelId]
       }),
     updateConnectionState: cs =>
       set(state => { state.connectionStates[cs.channelId] = cs })
@@ -176,7 +199,10 @@ export const useStore = create<RootState>()(
       ...buildSettingsSlice(s),
       ...buildAuthSlice(s),
       windowFocused: true,
-      setWindowFocused: (v: boolean) => set(state => { (state as RootState).windowFocused = v })
+      setWindowFocused: (v: boolean) => set(state => { (state as RootState).windowFocused = v }),
+      updateStatus: { checking: false, available: null, downloaded: null, error: null },
+      setUpdateStatus: (patch: Partial<UpdateStatus>) =>
+        set(state => { Object.assign((state as RootState).updateStatus, patch) })
     }
   })
 )

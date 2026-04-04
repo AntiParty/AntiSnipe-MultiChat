@@ -20,10 +20,21 @@ export function initIpcSync(): () => void {
     useStore.getState().hydrateAuth(auth)
   })
 
-  // Load initial connection states
-  bridge.invoke('connections:getAll').then(states => {
+  // Load initial connection states, then pull any cached recent messages
+  bridge.invoke('connections:getAll').then(async states => {
     for (const state of states) {
       useStore.getState().updateConnectionState(state)
+    }
+    // Pull recent messages for channels connected before the renderer loaded
+    for (const state of states) {
+      if (state.status === 'connected') {
+        try {
+          const msgs = await bridge.invoke('chat:getRecentMessages', { channelId: state.channelId })
+          if (msgs.length > 0) {
+            useStore.getState().prependMessages(state.channelId, msgs)
+          }
+        } catch { /* ignore */ }
+      }
     }
   })
 
@@ -89,16 +100,28 @@ export function initIpcSync(): () => void {
     })
   )
 
-  // Update notifications — handled by StatusBar via store
+  // Update notifications
   unsubscribers.push(
     bridge.on(RENDERER_CHANNELS.UPDATE_AVAILABLE, ({ version }) => {
-      useStore.getState().updateSettings({ _updateAvailable: version } as any)
+      useStore.getState().setUpdateStatus({ available: version, checking: false, error: null })
     })
   )
 
   unsubscribers.push(
     bridge.on(RENDERER_CHANNELS.UPDATE_DOWNLOADED, ({ version }) => {
-      useStore.getState().updateSettings({ _updateDownloaded: version } as any)
+      useStore.getState().setUpdateStatus({ downloaded: version, checking: false, error: null })
+    })
+  )
+
+  unsubscribers.push(
+    bridge.on(RENDERER_CHANNELS.UPDATE_NOT_AVAILABLE, () => {
+      useStore.getState().setUpdateStatus({ checking: false, error: null })
+    })
+  )
+
+  unsubscribers.push(
+    bridge.on(RENDERER_CHANNELS.UPDATE_ERROR, ({ message }) => {
+      useStore.getState().setUpdateStatus({ checking: false, error: message })
     })
   )
 
@@ -116,7 +139,24 @@ export function initIpcSync(): () => void {
     })
   )
 
+  // Recent messages — prepended to channel buffer when fetched on connect
+  unsubscribers.push(
+    bridge.on(RENDERER_CHANNELS.RECENT_MESSAGES, ({ channelId, messages }) => {
+      useStore.getState().prependMessages(channelId, messages)
+    })
+  )
+
+  // Viewer count polling — fetches every 60s unconditionally
+  const pollViewerCounts = () => {
+    bridge.invoke('streams:viewerCounts').then(counts => {
+      useStore.getState().setViewerCounts(counts)
+    }).catch(() => {})
+  }
+  pollViewerCounts()
+  const viewerCountTimer = setInterval(pollViewerCounts, 60_000)
+
   return () => {
+    clearInterval(viewerCountTimer)
     for (const unsub of unsubscribers) unsub()
   }
 }

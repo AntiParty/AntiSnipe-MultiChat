@@ -1,4 +1,5 @@
 import log from 'electron-log'
+import { net } from 'electron'
 import { TwitchService } from './twitch/TwitchService'
 import { youtubeService } from './youtube/YouTubeService'
 import { KickService } from './kick/KickService'
@@ -8,12 +9,14 @@ import { settingsStore } from '../store/SettingsStore'
 import { emoteCacheManager } from '../emotes/EmoteCacheManager'
 import { tokenStore } from '../auth/TokenStore'
 import { twitchAuth } from '../auth/TwitchAuth'
-import { buildSelfMessage } from './twitch/TwitchMessageNormalizer'
+import { buildSelfMessage, normalizeTwitchMessage } from './twitch/TwitchMessageNormalizer'
+import { parseIrcLine } from './twitch/TwitchIrcParser'
 import { RENDERER_CHANNELS } from '../../shared/types/ipc'
+import { TWITCH_HELIX_BASE } from '../../shared/constants'
 import { pluginManager } from './PluginManager'
 import type { ConnectChannelPayload, ConnectionState } from '../../shared/types/channel'
 import type { NormalizedMessage, DeleteMessageEvent } from '../../shared/types/message'
-import type { ModActionPayload, ModActionType } from '../../shared/types/ipc'
+import type { ModActionPayload, ModActionType, UserCardPayload, UserCardData } from '../../shared/types/ipc'
 
 // Twitch removed these commands from IRC in Feb 2023 — must use Helix API instead
 const REMOVED_IRC_COMMANDS: Record<string, ModActionType | 'unban'> = {
@@ -25,6 +28,7 @@ const REMOVED_IRC_COMMANDS: Record<string, ModActionType | 'unban'> = {
 
 class PlatformManager {
   private connectionStates = new Map<string, ConnectionState>()
+  private recentMessageCache = new Map<string, NormalizedMessage[]>()
   private twitchService: TwitchService
   private kickService: KickService
   private tiktokService: TikTokService
@@ -57,17 +61,12 @@ class PlatformManager {
   private handleMessage(msg: NormalizedMessage): void {
     const action = pluginManager.applyToMessage(msg)
     if (action?.type === 'hide') return
-    if (action?.type === 'highlight') msg.highlight = action.color
-    if (action?.type === 'tag') {
-      msg.tags = msg.tags || []
-      msg.tags.push({ label: action.label, color: action.color })
-    }
-    if (action?.type === 'replace') msg.text = action.text
     if (action?.type === 'command') {
+      // Bot-style: plugin intercepts an incoming message and sends a response
       let respond = action.respond
       if (respond === '__song__') {
         try {
-          const { execSync } = require('child_process')
+          const { execSync } = require('child_process') as typeof import('child_process')
           if (process.platform === 'win32') {
             const out = execSync(
               'powershell -Command ' +
@@ -78,19 +77,21 @@ class PlatformManager {
             ).trim()
             respond = out || '(nothing playing)'
           } else {
-            respond = '(not supported)'
+            respond = '(not supported on this OS)'
           }
         } catch {
-          respond = '(error)'
+          respond = '(error fetching song)'
         }
       }
-      // Mention the user if setting is enabled
       const settings = settingsStore.get()
       if (settings.pluginMentionUsers) {
-        respond = `@${msg.authorDisplay} ${respond}`
+        respond = `@${msg.authorDisplayName} ${respond}`
       }
-      // Send the response to the same channel
       this.sendMessage(msg.channelId, respond).catch(err => log.error('Plugin command send failed:', err))
+      // Fall through — still show the original message in chat
+    } else if (action) {
+      // highlight / tag / replace — bake into message for renderer
+      msg.pluginAction = action
     }
     broadcaster.enqueue(msg)
   }
@@ -118,6 +119,9 @@ class PlatformManager {
         // broadcasterId and emote fetch happen automatically via ROOMSTATE after join
         await this.twitchService.joinChannel({ channelId, slug, displayName })
         this.setConnectionState(channelId, 'connected')
+        if (settings.loadRecentMessages) {
+          this.fetchRecentMessages(channelId, slug, displayName).catch(log.warn)
+        }
       } else if (platform === 'youtube') {
         await youtubeService.joinChannel(
           channelId,
@@ -282,6 +286,154 @@ class PlatformManager {
 
   getConnectionState(channelId: string): ConnectionState | undefined {
     return this.connectionStates.get(channelId)
+  }
+
+  /** Returns live viewer counts keyed by channelId for all connected Twitch channels. */
+  async getViewerCounts(): Promise<Record<string, number>> {
+    const settings = settingsStore.get()
+    const accessToken = tokenStore.getAccessToken('twitch')
+    if (!accessToken || !settings.twitchClientId) return {}
+
+    const twitchChannels = settings.channels.filter(c => c.platform === 'twitch')
+    if (twitchChannels.length === 0) return {}
+
+    const params = twitchChannels.map(c => `user_login=${encodeURIComponent(c.slug)}`).join('&')
+    try {
+      const resp = await net.fetch(`${TWITCH_HELIX_BASE}/streams?${params}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Client-Id': settings.twitchClientId
+        }
+      })
+      if (!resp.ok) return {}
+      const data = await resp.json() as { data: Array<{ user_login: string; viewer_count: number }> }
+      const counts: Record<string, number> = {}
+      for (const stream of data.data ?? []) {
+        const ch = twitchChannels.find(c => c.slug === stream.user_login.toLowerCase())
+        if (ch) counts[ch.id] = stream.viewer_count
+      }
+      return counts
+    } catch {
+      return {}
+    }
+  }
+
+  /** Consume cached recent messages for a channel (called by renderer after it's ready). */
+  getRecentMessages(channelId: string): NormalizedMessage[] {
+    const msgs = this.recentMessageCache.get(channelId) ?? []
+    this.recentMessageCache.delete(channelId)
+    return msgs
+  }
+
+  /** Fetches recent messages from the community recent-messages API and caches them. */
+  private async fetchRecentMessages(channelId: string, slug: string, displayName: string): Promise<void> {
+    const settings = settingsStore.get()
+    const broadcasterId = this.twitchService.getBroadcasterId(channelId)
+    try {
+      const resp = await net.fetch(
+        `https://recent-messages.robotty.de/api/v2/recent-messages/${encodeURIComponent(slug)}?limit=100`
+      )
+      if (!resp.ok) {
+        log.warn(`fetchRecentMessages: HTTP ${resp.status} for ${slug}`)
+        return
+      }
+      const data = await resp.json() as { messages?: string[] }
+      if (!data.messages?.length) return
+
+      const msgs: NormalizedMessage[] = []
+      for (const line of data.messages) {
+        try {
+          const rawLine = line.replace(/\r$/, '')
+          const parsed = parseIrcLine(rawLine)
+          if (!parsed || parsed.command !== 'PRIVMSG') continue
+          const isAction = rawLine.includes('\x01ACTION')
+          const msg = normalizeTwitchMessage(
+            parsed, channelId, displayName, broadcasterId,
+            settings.mentionKeywords, settings.keywordAlerts, isAction
+          )
+          if (msg) msgs.push({ ...msg, isHistorical: true })
+        } catch { /* skip malformed line */ }
+      }
+      if (msgs.length > 0) {
+        // Cache for renderer pull (handles startup race condition)
+        this.recentMessageCache.set(channelId, msgs)
+        // Also try to push directly if renderer is already listening
+        broadcaster.send(RENDERER_CHANNELS.RECENT_MESSAGES, { channelId, messages: msgs })
+      }
+    } catch (err) {
+      log.warn('fetchRecentMessages failed for', slug, err)
+    }
+  }
+
+  /** Fetch Twitch user card data (profile pic, follow date, sub status). */
+  async getUserCard(payload: UserCardPayload): Promise<UserCardData | null> {
+    const { userId, channelId, login } = payload
+    const settings = settingsStore.get()
+    let accessToken = tokenStore.getAccessToken('twitch')
+    if (!accessToken) accessToken = await twitchAuth.refreshAccessToken()
+    if (!accessToken || !settings.twitchClientId) return null
+
+    const headers = {
+      Authorization: `Bearer ${accessToken}`,
+      'Client-Id': settings.twitchClientId
+    }
+
+    try {
+      // Fetch user info
+      const userResp = await net.fetch(`${TWITCH_HELIX_BASE}/users?id=${userId}`, { headers })
+      if (!userResp.ok) return null
+      const userData = await userResp.json() as { data?: Array<{ id: string; login: string; display_name: string; profile_image_url: string }> }
+      const user = userData.data?.[0]
+      if (!user) return null
+
+      const broadcasterId = this.twitchService.getBroadcasterId(channelId)
+      let followedAt: string | null = null
+      let subTier: string | null = null
+      let subMonths: number | null = null
+
+      if (broadcasterId) {
+        // Fetch follower info (requires moderator:read:followers)
+        try {
+          const followResp = await net.fetch(
+            `${TWITCH_HELIX_BASE}/channels/followers?broadcaster_id=${broadcasterId}&user_id=${userId}`,
+            { headers }
+          )
+          if (followResp.ok) {
+            const followData = await followResp.json() as { data?: Array<{ followed_at: string }> }
+            followedAt = followData.data?.[0]?.followed_at ?? null
+          }
+        } catch { /* scope not granted */ }
+
+        // Fetch sub info (requires channel:read:subscriptions)
+        try {
+          const subResp = await net.fetch(
+            `${TWITCH_HELIX_BASE}/subscriptions?broadcaster_id=${broadcasterId}&user_id=${userId}`,
+            { headers }
+          )
+          if (subResp.ok) {
+            const subData = await subResp.json() as { data?: Array<{ tier: string; is_gift: boolean }> }
+            const sub = subData.data?.[0]
+            if (sub) {
+              subTier = sub.tier
+              // cumulative_months not always available, use badge-info from messages instead
+            }
+          }
+        } catch { /* scope not granted */ }
+      }
+
+      return {
+        userId: user.id,
+        login: user.login || login,
+        displayName: user.display_name,
+        profileImageUrl: user.profile_image_url,
+        followedAt,
+        subTier,
+        subMonths
+      }
+    } catch (err) {
+      log.warn('getUserCard failed for', login, err)
+      return null
+    }
   }
 }
 

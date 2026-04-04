@@ -223,7 +223,7 @@ export default function SettingsPlugins() {
         </div>
         <Toggle
           checked={settings.pluginMentionUsers}
-          onChange={checked => saveSettings({ pluginMentionUsers: checked })}
+          onCheckedChange={checked => saveSettings({ pluginMentionUsers: checked })}
         />
       </div>
 

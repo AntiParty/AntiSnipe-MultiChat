@@ -55,6 +55,7 @@ export interface NormalizedMessage {
   replyTo?: ReplyContext
   customRewardId?: string
   pluginAction?: PluginAction
+  isHistorical?: boolean
 }
 
 export interface DeleteMessageEvent {

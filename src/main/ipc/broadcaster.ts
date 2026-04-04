@@ -2,7 +2,6 @@ import { BrowserWindow } from 'electron'
 import { RENDERER_CHANNELS } from '../../shared/types/ipc'
 import { BROADCAST_INTERVAL_MS, BROADCAST_BATCH_SIZE } from '../../shared/constants'
 import { settingsStore } from '../store/SettingsStore'
-import { pluginManager } from '../services/PluginManager'
 import type { NormalizedMessage } from '../../shared/types/message'
 
 class Broadcaster {
@@ -35,13 +34,8 @@ class Broadcaster {
 
     while (this.queue.length > 0) {
       const batch = this.queue.splice(0, BROADCAST_BATCH_SIZE)
-      // Apply plugins in main process (avoids renderer CSP restrictions)
-      const processed = batch.map(msg => {
-        const action = pluginManager.applyToMessage(msg)
-        return action ? { ...msg, pluginAction: action } : msg
-      })
       try {
-        this.win.webContents.send(RENDERER_CHANNELS.MESSAGE_BATCH, processed)
+        this.win.webContents.send(RENDERER_CHANNELS.MESSAGE_BATCH, batch)
       } catch {
         // window may have been destroyed between checks
       }

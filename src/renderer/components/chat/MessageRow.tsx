@@ -2,6 +2,7 @@ import { memo, useState, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { Trash2, Clock, Ban, ShieldOff } from 'lucide-react'
 import MessageContent from './MessageContent'
+import UserCard from './UserCard'
 import { PlatformLogo } from '../ui/PlatformLogos'
 import styles from '../../styles/chat.module.css'
 import { colorHash, readableColor } from '../../utils/colorHash'
@@ -84,9 +85,11 @@ function MessageRow({ message, index }: MessageRowProps) {
   const hideCommands = useStore(s => s.settings.hideCommands)
   const showReplyContext = useStore(s => s.settings.showReplyContext)
   const modButtons = useStore(s => s.settings.modButtons)
+  const clickableUsernames = useStore(s => s.settings.clickableUsernames)
   const isMod = useStore(s => s.selfModByChannel[message.channelId] ?? false)
 
   const [timeoutOpen, setTimeoutOpen] = useState(false)
+  const [userCardAnchor, setUserCardAnchor] = useState<DOMRect | null>(null)
 
   const { messageType, isHighlighted, isMention, isAction, isDeleted, raw } = message
 
@@ -169,7 +172,8 @@ function MessageRow({ message, index }: MessageRowProps) {
       style={{
         background: rowBg,
         paddingTop: 'var(--row-padding-y, 1px)',
-        paddingBottom: 'var(--row-padding-y, 1px)'
+        paddingBottom: 'var(--row-padding-y, 1px)',
+        opacity: message.isHistorical ? 0.55 : undefined
       }}
       onMouseLeave={() => setTimeoutOpen(false)}
     >
@@ -292,13 +296,47 @@ function MessageRow({ message, index }: MessageRowProps) {
             </span>
           )}
 
-          <span
-            className={styles.authorName}
-            style={{ color: authorColor }}
-            title={`${message.authorName} (${message.platform})`}
-          >
-            {displayedName}
-          </span>
+          {clickableUsernames && message.platform === 'twitch' && message.authorName ? (
+            <>
+              <span
+                className={styles.authorName}
+                style={{ color: authorColor, cursor: 'pointer' }}
+                title={`View ${message.authorName}'s profile`}
+                onClick={e => {
+                  e.stopPropagation()
+                  setUserCardAnchor((e.currentTarget as HTMLElement).getBoundingClientRect())
+                }}
+              >
+                {displayedName}
+              </span>
+              {userCardAnchor && (
+                <UserCard
+                  userId={message.authorId}
+                  login={message.authorName}
+                  channelId={message.channelId}
+                  anchorRect={userCardAnchor}
+                  onClose={() => setUserCardAnchor(null)}
+                  onModAction={(action, targetUserId, targetUserLogin) => {
+                    window.chatBridge.invoke('mod:action', {
+                      channelId: message.channelId,
+                      action,
+                      targetUserId,
+                      targetUserLogin,
+                      duration: action === 'timeout' ? 600 : undefined
+                    }).catch(console.error)
+                  }}
+                />
+              )}
+            </>
+          ) : (
+            <span
+              className={styles.authorName}
+              style={{ color: authorColor }}
+              title={`${message.authorName} (${message.platform})`}
+            >
+              {displayedName}
+            </span>
+          )}
 
           <span className={styles.colon}>: </span>
 
@@ -316,5 +354,6 @@ export default memo(
   (prev, next) =>
     prev.message.id === next.message.id &&
     prev.message.isDeleted === next.message.isDeleted &&
+    prev.message.isHistorical === next.message.isHistorical &&
     prev.index === next.index
 )

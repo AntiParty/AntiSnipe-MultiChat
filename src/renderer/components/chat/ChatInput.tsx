@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { SendHorizonal, Lock } from 'lucide-react'
 import { useStore } from '../../store'
 import type { ChatterInfo } from '../../store/slices/chatSlice'
@@ -9,11 +9,15 @@ interface ChatInputProps {
   channelId: string
 }
 
+export interface ChatInputHandle {
+  focus: () => void
+}
+
 const MAX_SUGGESTIONS = 8
 const CHAR_LIMIT = 500
 const CHAR_WARN_AT = 420
 
-export default function ChatInput({ channelId }: ChatInputProps) {
+const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput({ channelId }, ref) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [focused, setFocused] = useState(false)
@@ -23,6 +27,8 @@ export default function ChatInput({ channelId }: ChatInputProps) {
 
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
+
+  useImperativeHandle(ref, () => ({ focus: () => inputRef.current?.focus() }))
 
   const channels = useStore(s => s.channels)
   const auth = useStore(s => s.auth)
@@ -419,4 +425,6 @@ export default function ChatInput({ channelId }: ChatInputProps) {
       </div>
     </div>
   )
-}
+})
+
+export default ChatInput

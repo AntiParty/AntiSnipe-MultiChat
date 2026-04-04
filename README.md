@@ -99,10 +99,18 @@ Control when animated emotes (GIFs / animated WebP) play:
 
 When you send a message on Twitch, it appears in chat immediately — no waiting for the IRC echo round-trip. If the echo arrives before the 10-second window expires, it is silently dropped to prevent duplicates.
 
+### Chat History
+
+When you join a Twitch channel, the last 100 messages are fetched from the [recent-messages API](https://recent-messages.robotty.de/) and displayed greyed out so you can tell which messages are historical at a glance.
+
+### Auto-Updates
+
+AntiSnipe MultiChat checks for updates in the background and notifies you with a banner when one is ready. Updates are downloaded automatically — click **Restart & Install** to apply, or install later from the Settings → General → Updates section.
+
 ### Performance
 
-- Virtualized message list — handles 10,000+ messages/hr without slowdown
-- Configurable message limit per channel (500–50,000)
+- Render-windowed message list (last 200 messages rendered, block-flow layout) — no layout overlap ever
+- Configurable message limit per channel (100–50,000)
 - Disk-cached emotes — subsequent connects load from disk in under a second
 - Auto-reconnect on disconnect
 
@@ -112,7 +120,7 @@ When you send a message on Twitch, it appears in chat immediately — no waiting
 
 ### Download a Release
 
-Head to the [Releases](https://github.com/your-org/AntiSnipe-MultiChat/releases) page and download the installer for your platform:
+Head to the [Releases](https://github.com/Antiparty/AntiSnipe-MultiChat/releases) page and download the installer for your platform:
 
 | Platform | File |
 |----------|------|
@@ -125,7 +133,7 @@ Head to the [Releases](https://github.com/your-org/AntiSnipe-MultiChat/releases)
 **Prerequisites:** Node.js 20+ · npm 9+ · Git
 
 ```bash
-git clone https://github.com/your-org/AntiSnipe-MultiChat.git
+git clone https://github.com/Antiparty/AntiSnipe-MultiChat.git
 cd AntiSnipe-MultiChat
 npm install
 
@@ -133,9 +141,9 @@ npm install
 npm run dev
 
 # Production builds
-npm run build:win    # Windows NSIS installer
-npm run build:mac    # macOS DMG
-npm run build:linux  # AppImage + .deb
+npm run package:win    # Windows NSIS installer
+npm run package:mac    # macOS DMG
+npm run package:linux  # AppImage + .deb
 ```
 
 ---
@@ -261,7 +269,7 @@ src/
 ├── renderer/           React 18 frontend
 │   ├── store/          Zustand 5 + immer + IPC sync middleware
 │   ├── components/
-│   │   ├── chat/       Virtualized message list, MessageRow, ChatInput, ChatTabs
+│   │   ├── chat/       Message list, MessageRow, ChatInput, ChatTabs, UserCard
 │   │   ├── settings/   Auth, appearance, emotes, filters, mod buttons
 │   │   └── ui/         Button, Input, Tooltip, PlatformLogos
 │   └── hooks/          useSettings, useChat
@@ -276,13 +284,15 @@ The main process owns all platform connections. Messages are batched and broadca
 
 ## Contributing
 
-Contributions are welcome.
+Contributions are welcome! See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the full guide — how to set up the project, the architecture, code conventions, and the PR checklist.
+
+The short version:
 
 1. Fork the repo and create a branch: `git checkout -b feature/my-feature`
-2. Make your changes and verify types: `npx tsc --noEmit`
+2. Make your changes: `npm run typecheck && npm run lint`
 3. Open a pull request with a clear description
 
-Open an issue first for large features to discuss the approach before writing code.
+For larger features or new platform integrations, open an issue first to discuss the approach.
 
 ---
 
@@ -366,6 +376,6 @@ AntiSnipe MultiChat is free and open source. AntiSnipe is a paid product — bui
 <p align="center">
   Made for the streaming community.<br />
   <a href="https://antisnipe.com">AntiSnipe</a> &nbsp;·&nbsp;
-  <a href="https://github.com/your-org/AntiSnipe-MultiChat/issues">Report an Issue</a> &nbsp;·&nbsp;
-  <a href="https://github.com/your-org/AntiSnipe-MultiChat/releases">Download</a>
+  <a href="https://github.com/Antiparty/AntiSnipe-MultiChat/issues">Report an Issue</a> &nbsp;·&nbsp;
+  <a href="https://github.com/Antiparty/AntiSnipe-MultiChat/releases">Download</a>
 </p>

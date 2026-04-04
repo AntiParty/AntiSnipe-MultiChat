@@ -50,6 +50,10 @@ const settingsSchema = z.object({
     showBan: z.boolean().default(true),
     timeoutPresets: z.array(z.number()).default([60, 600, 3600, 86400])
   }).default({}),
+  pluginMentionUsers: z.boolean().default(false),
+  clickableUsernames: z.boolean().default(true),
+  showViewerCount: z.boolean().default(false),
+  loadRecentMessages: z.boolean().default(true),
   windowBounds: z.object({
     x: z.number().nullable().default(null),
     y: z.number().nullable().default(null),
@@ -99,6 +103,10 @@ class SettingsStore {
       mentionKeywords: this.store.get('mentionKeywords', []),
       maxMessagesPerChannel: this.store.get('maxMessagesPerChannel', 5000),
       modButtons: this.store.get('modButtons', DEFAULT_SETTINGS.modButtons),
+      pluginMentionUsers: this.store.get('pluginMentionUsers', false),
+      clickableUsernames: this.store.get('clickableUsernames', true),
+      showViewerCount: this.store.get('showViewerCount', false),
+      loadRecentMessages: this.store.get('loadRecentMessages', true),
       windowBounds: this.store.get('windowBounds', DEFAULT_SETTINGS.windowBounds)
     }
   }

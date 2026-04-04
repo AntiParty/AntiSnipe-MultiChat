@@ -5,9 +5,12 @@ import TitleBar from './components/layout/TitleBar'
 import StatusBar from './components/layout/StatusBar'
 import ChatPane from './components/chat/ChatPane'
 import ChatTabs from './components/chat/ChatTabs'
+import ChannelHeader from './components/chat/ChannelHeader'
 import SettingsModal from './components/settings/SettingsModal'
+import UpdateBanner from './components/layout/UpdateBanner'
 
 export default function App() {
+  const activeChannelId = useStore(s => s.activeChannelId)
   const theme = useStore(s => s.settings.theme)
   const fontSize = useStore(s => s.settings.fontSize)
   const emoteScale = useStore(s => s.settings.emoteScale)
@@ -112,8 +115,10 @@ export default function App() {
       style={{ background: 'var(--surface-0)', color: 'var(--text-primary)' }}
     >
       <TitleBar />
+      <UpdateBanner />
       <ChatTabs />
-      <ChatPane />
+      <ChannelHeader />
+      <ChatPane key={activeChannelId} />
       <StatusBar />
       <SettingsModal />
     </div>

@@ -16,14 +16,17 @@ export interface ChatSlice {
   chattersByChannel: Record<string, ChatterInfo[]>
   activeChannelId: string
   unreadCounts: Record<string, number>
+  viewerCountsByChannel: Record<string, number>
 
   addMessages: (messages: NormalizedMessage[]) => void
+  prependMessages: (channelId: string, messages: NormalizedMessage[]) => void
   deleteMessage: (event: DeleteMessageEvent) => void
   setActiveChannel: (channelId: string) => void
   clearChannel: (channelId: string) => void
   resetUnread: (channelId: string) => void
   setChannelEmotes: (channelId: string, emotes: EmoteData[]) => void
   setSelfModStatus: (channelId: string, isMod: boolean) => void
+  setViewerCounts: (counts: Record<string, number>) => void
 }
 
 function emotePriority(provider: EmoteData['provider']): number {
@@ -58,6 +61,7 @@ export const createChatSlice: StateCreator<ChatSlice, [['zustand/immer', never]]
   chattersByChannel: {},
   activeChannelId: 'all',
   unreadCounts: {},
+  viewerCountsByChannel: {},
 
   addMessages: messages => {
     set(state => {
@@ -125,6 +129,21 @@ export const createChatSlice: StateCreator<ChatSlice, [['zustand/immer', never]]
 
   setSelfModStatus: (channelId, isMod) => {
     set(state => { state.selfModByChannel[channelId] = isMod })
+  },
+
+  setViewerCounts: counts => {
+    set(state => { state.viewerCountsByChannel = counts })
+  },
+
+  prependMessages: (channelId, messages) => {
+    set(state => {
+      const existing = state.messagesByChannel[channelId] ?? []
+      const existingIds = new Set(existing.map(m => m.id))
+      const fresh = messages.filter(m => !existingIds.has(m.id))
+      if (fresh.length > 0) {
+        state.messagesByChannel[channelId] = [...fresh, ...existing]
+      }
+    })
   },
 
   setChannelEmotes: (channelId, emotes) => {

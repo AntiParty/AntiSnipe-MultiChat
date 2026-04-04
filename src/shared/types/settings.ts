@@ -78,6 +78,11 @@ export interface AppSettings {
   // Plugins
   pluginMentionUsers: boolean
 
+  // Profile / history
+  clickableUsernames: boolean   // open Twitch/YouTube profile on click
+  showViewerCount: boolean      // show live viewer count in All tab + sidebar
+  loadRecentMessages: boolean   // fetch last 100 messages on channel join
+
   // Window state
   windowBounds: WindowBounds
 }
@@ -118,5 +123,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     timeoutPresets: [60, 600, 3600, 86400]
   },
   pluginMentionUsers: false,
+  clickableUsernames: true,
+  showViewerCount: false,
+  loadRecentMessages: true,
   windowBounds: { x: null, y: null, width: 420, height: 900 }
 }

@@ -48,6 +48,7 @@ export default function ChatTabs() {
   const addChannel = useStore(s => s.addChannel)
   const removeChannel = useStore(s => s.removeChannel)
   const unreadCounts = useStore(s => s.unreadCounts)
+  const viewerCounts = useStore(s => s.viewerCountsByChannel)
   const { settings, save } = useSettings()
 
   const [showAdd, setShowAdd] = useState(false)
@@ -143,6 +144,7 @@ export default function ChatTabs() {
             onClick={() => setActiveChannel(channel.id)}
             platformColor={PLATFORM_COLORS[channel.platform]}
             unread={unreadCounts[channel.id] ?? 0}
+            viewerCount={viewerCounts[channel.id]}
             onRemove={e => handleRemove(channel.id, e)}
             onRename={newName => handleRename(channel.id, newName)}
           />
@@ -305,11 +307,12 @@ interface TabProps {
   onClick: () => void
   platformColor?: string
   unread?: number
+  viewerCount?: number
   onRemove?: (e: React.MouseEvent) => void
   onRename?: (newName: string) => void
 }
 
-function Tab({ label, isActive, onClick, platformColor, unread, onRemove, onRename }: TabProps) {
+function Tab({ label, isActive, onClick, platformColor, unread, viewerCount, onRemove, onRename }: TabProps) {
   const [hovered, setHovered] = useState(false)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [renaming, setRenaming] = useState(false)
@@ -407,6 +410,11 @@ function Tab({ label, isActive, onClick, platformColor, unread, onRemove, onRena
           />
         ) : (
           <span>{label}</span>
+        )}
+        {viewerCount != null && viewerCount > 0 && (
+          <span style={{ fontSize: '9px', color: 'var(--text-muted)', flexShrink: 0 }}>
+            {viewerCount >= 1000 ? `${(viewerCount / 1000).toFixed(1)}k` : viewerCount}
+          </span>
         )}
         {unread != null && unread > 0 && !isActive && (
           <span style={{

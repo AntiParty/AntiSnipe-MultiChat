@@ -105,6 +105,8 @@ export default function Sidebar() {
   const addChannel = useStore(s => s.addChannel)
   const removeChannel = useStore(s => s.removeChannel)
   const unreadCounts = useStore(s => s.unreadCounts)
+  const viewerCounts = useStore(s => s.viewerCountsByChannel)
+  const showViewerCount = useStore(s => s.settings.showViewerCount)
   const { settings, save } = useSettings()
 
   const handleAdd = async (channel: ChannelConfig) => {
@@ -134,6 +136,17 @@ export default function Sidebar() {
     >
       {/* Channel list */}
       <div className="flex-1 overflow-y-auto">
+        {/* All tab */}
+        <ChannelEntry
+          label="All"
+          isActive={activeChannelId === 'all'}
+          onClick={() => setActiveChannel('all')}
+          platformColor={undefined}
+          platformLabel="ALL"
+          unread={Object.values(unreadCounts).reduce((s, n) => s + n, 0)}
+          viewerCount={showViewerCount ? Object.values(viewerCounts).reduce((s, n) => s + n, 0) : undefined}
+        />
+
         {channels.map(channel => {
           const state = connectionStates[channel.id]
           const status = state?.status
@@ -149,6 +162,7 @@ export default function Sidebar() {
               unread={unreadCounts[channel.id] ?? 0}
               status={status}
               statusError={state?.error}
+              viewerCount={showViewerCount ? viewerCounts[channel.id] : undefined}
             />
           )
         })}
@@ -169,10 +183,11 @@ interface ChannelEntryProps {
   unread: number
   status?: string
   statusError?: string
+  viewerCount?: number
 }
 
 function ChannelEntry({
-  label, isActive, onClick, onRemove, platformColor, platformLabel, unread, status, statusError
+  label, isActive, onClick, onRemove, platformColor, platformLabel, unread, status, statusError, viewerCount
 }: ChannelEntryProps) {
   const [hovered, setHovered] = useState(false)
 
@@ -188,69 +203,76 @@ function ChannelEntry({
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '5px',
-        padding: '4px 8px',
+        gap: '6px',
+        padding: '7px 10px',
         cursor: 'pointer',
         background: isActive ? 'var(--surface-2)' : hovered ? 'var(--surface-1)' : 'transparent',
-        borderLeft: isActive ? '2px solid var(--accent)' : '2px solid transparent',
-        minHeight: '24px'
+        borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
+        minHeight: '34px'
       }}
     >
       {/* Platform initial badge */}
-      {platformColor && (
-        <span
-          style={{
-            fontSize: '9px',
-            fontWeight: 700,
-            color: platformColor,
-            flexShrink: 0,
-            width: '14px',
-            textAlign: 'center'
-          }}
-        >
-          {platformLabel}
-        </span>
-      )}
-
-      {/* Channel name */}
       <span
         style={{
-          flex: 1,
-          fontSize: '11px',
-          color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap'
+          fontSize: '10px',
+          fontWeight: 700,
+          color: platformColor ?? 'var(--text-muted)',
+          flexShrink: 0,
+          width: '16px',
+          textAlign: 'center'
         }}
       >
-        {label}
+        {platformLabel}
+      </span>
+
+      {/* Channel name + viewer count */}
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span
+          style={{
+            display: 'block',
+            fontSize: '12px',
+            color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            fontWeight: isActive ? 600 : 400,
+          }}
+        >
+          {label}
+        </span>
+        {viewerCount != null && viewerCount > 0 && (
+          <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
+            👁 {viewerCount.toLocaleString()}
+          </span>
+        )}
       </span>
 
       {/* Status / unread / remove */}
       {isLoading && (
-        <Loader2 size={9} className="animate-spin" style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+        <Loader2 size={10} className="animate-spin" style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
       )}
       {isError && (
         <span
           title={statusError ?? 'Connection error'}
-          style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--danger)', flexShrink: 0, cursor: 'help' }}
+          style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--danger)', flexShrink: 0, cursor: 'help' }}
         />
       )}
       {isOffline && (
         <span
           title={statusError ?? 'Not live'}
-          style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--text-muted)', flexShrink: 0, cursor: 'help' }}
+          style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--text-muted)', flexShrink: 0, cursor: 'help' }}
         />
       )}
       {unread > 0 && !isActive && (
         <span
           style={{
             fontSize: '9px',
-            padding: '0 3px',
+            padding: '1px 4px',
+            borderRadius: '8px',
             background: 'var(--accent)',
             color: '#fff',
             flexShrink: 0,
-            minWidth: '14px',
+            minWidth: '16px',
             textAlign: 'center'
           }}
         >
@@ -265,7 +287,7 @@ function ChannelEntry({
             flexShrink: 0,
             background: 'none',
             border: 'none',
-            padding: '1px',
+            padding: '2px',
             color: 'var(--text-muted)',
             cursor: 'pointer',
             lineHeight: 1
@@ -273,7 +295,7 @@ function ChannelEntry({
           onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--danger)' }}
           onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)' }}
         >
-          <X size={10} />
+          <X size={11} />
         </button>
       )}
     </div>
