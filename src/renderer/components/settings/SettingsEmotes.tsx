@@ -71,6 +71,27 @@ export default function SettingsEmotes() {
       </section>
 
       <section>
+        <h3 className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
+          7TV Cosmetics
+        </h3>
+        <p className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>
+          Fetch and display 7TV user cosmetics in Twitch chat. Cosmetics are loaded on demand and cached per session.
+        </p>
+        <div className="space-y-3">
+          <Toggle
+            checked={settings.show7tvBadges}
+            onCheckedChange={v => save({ show7tvBadges: v })}
+            label="Show 7TV badges"
+          />
+          <Toggle
+            checked={settings.show7tvPaints}
+            onCheckedChange={v => save({ show7tvPaints: v })}
+            label="Animated username colors (7TV Paints)"
+          />
+        </div>
+      </section>
+
+      <section>
         <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
           Emote Size
         </h3>

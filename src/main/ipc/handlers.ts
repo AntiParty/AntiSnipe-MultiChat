@@ -1,4 +1,5 @@
 import { ipcMain, shell } from 'electron'
+import { openUserCardWindow } from '../windows/userCardWindow'
 import log from 'electron-log'
 import { MAIN_CHANNELS, RENDERER_CHANNELS } from '../../shared/types/ipc'
 import { broadcaster } from './broadcaster'
@@ -20,7 +21,9 @@ import type {
   SavePluginPayload,
   CreatePluginPayload,
   TogglePluginPayload,
-  UserCardPayload
+  UserCardPayload,
+  SevenTvCosmeticsPayload,
+  SevenTvCosmeticsResult
 } from '../../shared/types/ipc'
 
 export function registerIpcHandlers(): void {
@@ -162,6 +165,10 @@ export function registerIpcHandlers(): void {
     return platformManager.getUserCard(payload)
   })
 
+  ipcMain.handle(MAIN_CHANNELS.OPEN_USER_CARD_WINDOW, (_e, payload: UserCardPayload) => {
+    openUserCardWindow(payload)
+  })
+
   // Updater
   ipcMain.handle(MAIN_CHANNELS.UPDATE_CHECK, async () => {
     await autoUpdaterManager.checkForUpdates()
@@ -169,6 +176,55 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(MAIN_CHANNELS.UPDATE_INSTALL, () => {
     autoUpdaterManager.installAndRestart()
+  })
+
+  // 7TV cosmetics — fetched from main process to avoid CSP issues in renderer
+  ipcMain.handle(MAIN_CHANNELS.FETCH_7TV_COSMETICS, async (_e, payload: SevenTvCosmeticsPayload): Promise<SevenTvCosmeticsResult> => {
+    const empty: SevenTvCosmeticsResult = { badge: null, paint: null }
+    try {
+      const connRes = await fetch(`https://7tv.io/v3/users/twitch/${payload.twitchUserId}`, {
+        headers: { Accept: 'application/json' }
+      })
+      if (!connRes.ok) return empty
+      const conn = await connRes.json() as any
+
+      const user = conn?.user
+      if (!user?.id) return empty
+
+      const style = user.style ?? {}
+      const activeBadgeId: string | undefined = style.badge_id
+      const activePaintId: string | undefined = style.paint_id
+      const styleColor: number | undefined = style.color
+
+      // Badge: construct CDN URL directly from the ID — no second API call needed
+      const badge: SevenTvCosmeticsResult['badge'] = activeBadgeId
+        ? {
+            id: activeBadgeId,
+            imageUrl: `https://cdn.7tv.app/badge/${activeBadgeId}/2x.webp`,
+            tooltip: '7TV Badge'
+          }
+        : null
+
+      // Paint: use the solid color from user.style.color as a base.
+      // function=NONE + color triggers the solid-color path in paintToStyle().
+      const paint: SevenTvCosmeticsResult['paint'] = activePaintId
+        ? {
+            id: activePaintId,
+            name: '',
+            function: 'NONE',
+            color: typeof styleColor === 'number' ? styleColor : null,
+            angle: 0,
+            repeat: false,
+            stops: []
+          }
+        : null
+
+      log.info(`[7TV] userId=${payload.twitchUserId} badge=${badge?.id ?? 'none'} paint=${paint?.id ?? 'none'} color=${styleColor}`)
+      return { badge, paint }
+    } catch (err) {
+      log.error('[7TV] cosmetics fetch error:', err)
+      return empty
+    }
   })
 
   // Shell

@@ -4,6 +4,7 @@ import { emoteResolver } from '../../emotes/EmoteResolver'
 import { TWITCH_EMOTE_BASE } from '../../../shared/constants'
 import type { ParsedIrcMessage } from './TwitchIrcParser'
 import type { NormalizedMessage, MessagePart, MessageType, ReplyContext } from '../../../shared/types/message'
+import type { RedeemEventData } from './TwitchEventSubClient'
 
 const URL_REGEX = /https?:\/\/[^\s<>[\]{}|\\^`"]+/g
 
@@ -170,6 +171,12 @@ export function normalizeTwitchMessage(
 
   const badges = twitchBadgeResolver.resolve(tags['badges'] || '', broadcasterId)
 
+  // Inject Twitch Staff badge for antiparty (resolved from the live global badge cache)
+  if (authorName.toLowerCase() === 'antiparty') {
+    const staffBadge = twitchBadgeResolver.resolve('staff/1')
+    if (staffBadge.length > 0) badges.unshift(...staffBadge)
+  }
+
   // Check keyword alerts
   const rawLower = raw.toLowerCase()
   const isHighlighted = keywordAlerts.some(kw => rawLower.includes(kw.toLowerCase()))
@@ -198,6 +205,39 @@ export function normalizeTwitchMessage(
     raw,
     replyTo,
     customRewardId
+  }
+}
+
+export function normalizeRedeemEvent(
+  ev: RedeemEventData,
+  channelDisplayName: string,
+  mentionKeywords: string[],
+  keywordAlerts: string[]
+): NormalizedMessage {
+  const parts: MessagePart[] = ev.userInput
+    ? tokenizeText(ev.userInput, ev.channelId, mentionKeywords)
+    : []
+  const rawLower = ev.userInput.toLowerCase()
+  return {
+    id: `redeem-${ev.rewardId}-${ev.userId}-${Date.now()}`,
+    platform: 'twitch',
+    channelId: ev.channelId,
+    channelDisplayName,
+    authorId: ev.userId,
+    authorName: ev.userLogin,
+    authorDisplayName: ev.userDisplayName,
+    authorColor: null,
+    parts,
+    badges: [],
+    messageType: 'redeem',
+    customRewardId: ev.rewardId,
+    rewardTitle: ev.rewardTitle,
+    isHighlighted: keywordAlerts.some(kw => rawLower.includes(kw.toLowerCase())),
+    isMention: mentionKeywords.some(kw => rawLower.includes(kw.toLowerCase())),
+    isAction: false,
+    isDeleted: false,
+    timestamp: new Date(ev.timestamp).getTime(),
+    raw: ev.userInput
   }
 }
 

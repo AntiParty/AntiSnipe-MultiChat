@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react'
-import { ArrowDown } from 'lucide-react'
+import { ArrowDown, Search, X as XIcon } from 'lucide-react'
 import { useStore } from '../../store'
 import { useActiveMessages } from '../../hooks/useChat'
 import MessageRow from './MessageRow'
@@ -13,9 +13,12 @@ const RENDER_LIMIT = 200
 export default function ChatPane() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const chatInputRef = useRef<ChatInputHandle>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const atBottomRef = useRef(true)
   const hoveredRef = useRef(false)
   const [isAtBottom, setIsAtBottom] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
 
   const messages = useActiveMessages()
   const activeChannelId = useStore(s => s.activeChannelId)
@@ -24,10 +27,39 @@ export default function ChatPane() {
   const smoothScroll = useStore(s => s.settings.smoothScroll)
   const messageSpacing = useStore(s => s.settings.messageSpacing)
 
-  // Only render the last RENDER_LIMIT messages to keep the DOM lean
-  const visibleMessages = messages.length > RENDER_LIMIT
+  // Ctrl+F opens search; Escape closes it
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault()
+        setSearchOpen(true)
+        setTimeout(() => searchInputRef.current?.focus(), 30)
+      }
+      if (e.key === 'Escape' && searchOpen) {
+        setSearchQuery('')
+        setSearchOpen(false)
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [searchOpen])
+
+  const closeSearch = useCallback(() => {
+    setSearchQuery('')
+    setSearchOpen(false)
+  }, [])
+
+  // Only render the last RENDER_LIMIT messages to keep the DOM lean,
+  // then filter by search query if one is active.
+  const trimmed = messages.length > RENDER_LIMIT
     ? messages.slice(messages.length - RENDER_LIMIT)
     : messages
+
+  const visibleMessages = searchQuery.trim()
+    ? trimmed.filter(m => m.raw?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.authorName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.authorDisplayName?.toLowerCase().includes(searchQuery.toLowerCase()))
+    : trimmed
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
     const el = scrollRef.current
@@ -75,6 +107,53 @@ export default function ChatPane() {
       className="flex flex-col flex-1 min-h-0"
       style={{ background: 'var(--surface-0)', '--row-padding-y': rowPaddingY } as React.CSSProperties}
     >
+      {/* Search bar */}
+      {searchOpen && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '4px 8px',
+          background: 'var(--surface-2)',
+          borderBottom: '1px solid var(--border)',
+          flexShrink: 0
+        }}>
+          <Search size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+          <input
+            ref={searchInputRef}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search messages…"
+            spellCheck={false}
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              fontSize: '12px',
+              color: 'var(--text-primary)',
+              padding: '2px 0'
+            }}
+          />
+          {searchQuery && (
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              {visibleMessages.length} result{visibleMessages.length !== 1 ? 's' : ''}
+            </span>
+          )}
+          <button
+            onClick={closeSearch}
+            title="Close search (Esc)"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text-muted)', padding: '2px', flexShrink: 0
+            }}
+          >
+            <XIcon size={12} />
+          </button>
+        </div>
+      )}
+
       {messages.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>

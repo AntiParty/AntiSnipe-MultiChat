@@ -54,6 +54,7 @@ export interface NormalizedMessage {
   raw: string
   replyTo?: ReplyContext
   customRewardId?: string
+  rewardTitle?: string       // populated for EventSub-sourced redemptions
   pluginAction?: PluginAction
   isHistorical?: boolean
 }

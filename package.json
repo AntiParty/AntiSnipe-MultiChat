@@ -1,6 +1,6 @@
 {
   "name": "antisinemultichat",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Cross-platform desktop chat aggregator for YouTube, Twitch, and Kick",
   "main": "out/main/index.js",
   "scripts": {

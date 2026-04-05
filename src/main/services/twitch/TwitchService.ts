@@ -9,8 +9,10 @@ import { twitchBadgeResolver } from './TwitchBadgeResolver'
 import { parseIrcLine, nickFromPrefix } from './TwitchIrcParser'
 import {
   normalizeTwitchMessage,
-  normalizeUserNotice
+  normalizeUserNotice,
+  normalizeRedeemEvent
 } from './TwitchMessageNormalizer'
+import { TwitchEventSubClient } from './TwitchEventSubClient'
 import {
   TWITCH_IRC_URL,
   TWITCH_IRC_CAPS,
@@ -55,6 +57,7 @@ export class TwitchService {
   private selfMessageKeys = new Map<string, number>() // "login:raw" → sent timestamp
   private selfBadgeTags = new Map<string, string>()   // channelId → last known badge tag string
   private selfModStatus = new Map<string, boolean>()  // channelId → is mod/broadcaster
+  private eventSub: TwitchEventSubClient
 
   constructor(onMessage: OnMessage, onDelete: OnDelete, onStatus: OnStatus, onRoomState: OnRoomState, onSelfModStatus: OnSelfModStatus) {
     this.onMessage = onMessage
@@ -62,6 +65,25 @@ export class TwitchService {
     this.onStatus = onStatus
     this.onRoomState = onRoomState
     this.onSelfModStatus = onSelfModStatus
+
+    this.eventSub = new TwitchEventSubClient(
+      ev => {
+        // Find the channel's display name from our handle map
+        const handle = this.channels.get(ev.channelId)
+        const settings = settingsStore.get()
+        const normalized = normalizeRedeemEvent(
+          ev,
+          handle?.displayName ?? ev.channelId,
+          settings.mentionKeywords,
+          settings.keywordAlerts
+        )
+        this.onMessage(normalized)
+      },
+      () => ({
+        accessToken: tokenStore.getAccessToken('twitch'),
+        clientId: settingsStore.get().twitchClientId
+      })
+    )
   }
 
   async joinChannel(handle: TwitchChannelHandle): Promise<void> {
@@ -86,6 +108,9 @@ export class TwitchService {
     const handle = this.channels.get(channelId)
     if (handle && this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(`PART #${handle.slug}\r\n`)
+    }
+    if (handle?.broadcasterId) {
+      this.eventSub.removeChannel(handle.broadcasterId)
     }
     this.channels.delete(channelId)
     if (this.channels.size === 0) {
@@ -294,6 +319,8 @@ export class TwitchService {
           handle.broadcasterId = roomId
           this.loadBadges(handle).catch(log.error)
           this.onRoomState(handle.channelId, roomId)
+          // Start EventSub subscription for channel point redeems
+          this.eventSub.addChannel(roomId, handle.channelId)
         }
         break
       }
@@ -334,6 +361,7 @@ export class TwitchService {
     this.selfMessageKeys.clear()
     this.selfBadgeTags.clear()
     this.selfModStatus.clear()
+    this.eventSub.stop()
   }
 
   getSelfModStatuses(): Record<string, boolean> {

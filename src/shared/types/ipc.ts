@@ -32,6 +32,8 @@ export const MAIN_CHANNELS = {
   GET_VIEWER_COUNTS: 'streams:viewerCounts',
   GET_RECENT_MESSAGES: 'chat:getRecentMessages',
   GET_USER_CARD: 'twitch:getUserCard',
+  OPEN_USER_CARD_WINDOW: 'usercard:openWindow',
+  FETCH_7TV_COSMETICS: '7tv:fetchCosmetics',
   SHELL_OPEN_EXTERNAL: 'shell:openExternal',
   UPDATE_CHECK: 'updater:check',
   UPDATE_INSTALL: 'updater:install',
@@ -151,6 +153,32 @@ export interface UserCardPayload {
   login: string
 }
 
+export interface SevenTvCosmeticsPayload {
+  twitchUserId: string
+}
+
+export interface SevenTvBadgeResult {
+  id: string
+  imageUrl: string  // pre-resolved 2x CDN URL
+  tooltip: string
+}
+
+export interface SevenTvPaintResult {
+  id: string
+  name: string
+  function: string
+  color: number | null
+  angle: number
+  repeat: boolean
+  stops: Array<{ at: number; color: number }>
+  shadows?: Array<{ x_offset: number; y_offset: number; radius: number; color: number }>
+}
+
+export interface SevenTvCosmeticsResult {
+  badge: SevenTvBadgeResult | null
+  paint: SevenTvPaintResult | null
+}
+
 export interface UserCardData {
   userId: string
   login: string
@@ -188,6 +216,8 @@ export interface ChatBridgeInvokeMap {
   [MAIN_CHANNELS.GET_VIEWER_COUNTS]: [undefined, Record<string, number>]
   [MAIN_CHANNELS.GET_RECENT_MESSAGES]: [{ channelId: string }, NormalizedMessage[]]
   [MAIN_CHANNELS.GET_USER_CARD]: [UserCardPayload, UserCardData | null]
+  [MAIN_CHANNELS.OPEN_USER_CARD_WINDOW]: [UserCardPayload, void]
+  [MAIN_CHANNELS.FETCH_7TV_COSMETICS]: [SevenTvCosmeticsPayload, SevenTvCosmeticsResult]
   [MAIN_CHANNELS.SHELL_OPEN_EXTERNAL]: [ShellOpenPayload, void]
   [MAIN_CHANNELS.UPDATE_CHECK]: [undefined, void]
   [MAIN_CHANNELS.UPDATE_INSTALL]: [undefined, void]

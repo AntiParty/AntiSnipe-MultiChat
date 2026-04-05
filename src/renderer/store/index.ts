@@ -53,8 +53,8 @@ type SetState = (fn: (state: RootState) => void) => void
 type GetState = () => RootState
 
 function buildChatSlice(set: SetState): ChatSlice {
-  const MAX = 5000
-  const TRIM = 1000
+  const MAX = 2000
+  const TRIM = 500
   return {
     messagesByChannel: {},
     emotesByChannel: {},

@@ -49,6 +49,7 @@ export default function ChatTabs() {
   const removeChannel = useStore(s => s.removeChannel)
   const unreadCounts = useStore(s => s.unreadCounts)
   const viewerCounts = useStore(s => s.viewerCountsByChannel)
+  const totalViewerCount = Object.values(viewerCounts).reduce((sum, v) => sum + (v ?? 0), 0)
   const { settings, save } = useSettings()
 
   const [showAdd, setShowAdd] = useState(false)
@@ -135,6 +136,7 @@ export default function ChatTabs() {
           label="All"
           isActive={activeChannelId === 'all'}
           onClick={() => setActiveChannel('all')}
+          viewerCount={totalViewerCount > 0 ? totalViewerCount : undefined}
         />
         {channels.map(channel => (
           <Tab

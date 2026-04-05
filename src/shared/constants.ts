@@ -1,6 +1,6 @@
 // Chat buffer limits
-export const MAX_MESSAGES_PER_CHANNEL = 5000
-export const TRIM_AMOUNT = 1000           // remove this many when limit exceeded
+export const MAX_MESSAGES_PER_CHANNEL = 2000
+export const TRIM_AMOUNT = 500            // remove this many when limit exceeded
 
 // Broadcaster rate limiting
 export const BROADCAST_INTERVAL_MS = 33  // ~30fps

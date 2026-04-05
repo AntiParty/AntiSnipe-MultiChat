@@ -56,6 +56,10 @@ export interface AppSettings {
   // Emote animation
   animateEmotes: AnimateEmotes
 
+  // 7TV cosmetics
+  show7tvBadges: boolean
+  show7tvPaints: boolean
+
   // Chat behavior
   showDeletedMessages: DeletedMessageStyle
   showReplyContext: boolean
@@ -106,6 +110,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   usernameDisplay: 'display-name',
   enabledProviders: { sevenTv: true, bttv: true, ffz: true },
   animateEmotes: 'always',
+  show7tvBadges: true,
+  show7tvPaints: true,
   showDeletedMessages: 'cross-out',
   showReplyContext: true,
   pauseScrollOnHover: false,

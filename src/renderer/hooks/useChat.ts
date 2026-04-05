@@ -19,9 +19,13 @@ export function useMessages(channelId: string): NormalizedMessage[] {
   return useMemo(() => {
     if (channelId === 'all') {
       const byChannel = data as Record<string, NormalizedMessage[]>
+      // Take only the tail of each channel's buffer before merging so the
+      // combined sort stays cheap even when many channels are active.
+      const PER_CHANNEL_CAP = 500
       const all: NormalizedMessage[] = []
       for (const msgs of Object.values(byChannel)) {
-        all.push(...msgs)
+        const slice = msgs.length > PER_CHANNEL_CAP ? msgs.slice(msgs.length - PER_CHANNEL_CAP) : msgs
+        all.push(...slice)
       }
       all.sort((a, b) => a.timestamp - b.timestamp)
       return all

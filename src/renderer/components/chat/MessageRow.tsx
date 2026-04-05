@@ -2,12 +2,12 @@ import { memo, useState, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { Trash2, Clock, Ban, ShieldOff } from 'lucide-react'
 import MessageContent from './MessageContent'
-import UserCard from './UserCard'
 import { PlatformLogo } from '../ui/PlatformLogos'
 import styles from '../../styles/chat.module.css'
 import { colorHash, readableColor } from '../../utils/colorHash'
 import { formatTimestamp } from '../../utils/timeFormat'
 import { useStore } from '../../store'
+import { useSevenTvCosmetics, paintToStyle, sevenTvBadgeUrl } from '../../services/sevenTvCosmetics'
 import type { NormalizedMessage, BadgeInfo } from '@shared/types/message'
 import type { Platform } from '@shared/types/message'
 
@@ -86,10 +86,24 @@ function MessageRow({ message, index }: MessageRowProps) {
   const showReplyContext = useStore(s => s.settings.showReplyContext)
   const modButtons = useStore(s => s.settings.modButtons)
   const clickableUsernames = useStore(s => s.settings.clickableUsernames)
+  const show7tvBadges = useStore(s => s.settings.show7tvBadges)
+  const show7tvPaints = useStore(s => s.settings.show7tvPaints)
+  const loggedInUsername = useStore(s => s.auth.twitch.username)
   const isMod = useStore(s => s.selfModByChannel[message.channelId] ?? false)
 
+  const sevenTvEnabled = (show7tvBadges || show7tvPaints) && message.platform === 'twitch'
+  const sevenTvCosmetics = useSevenTvCosmetics(
+    sevenTvEnabled ? message.authorId : undefined,
+    sevenTvEnabled
+  )
+
+  // Is this message a reply directed at the currently logged-in user?
+  const isReplyToMe =
+    !!message.replyTo &&
+    !!loggedInUsername &&
+    message.replyTo.userLogin?.toLowerCase() === loggedInUsername.toLowerCase()
+
   const [timeoutOpen, setTimeoutOpen] = useState(false)
-  const [userCardAnchor, setUserCardAnchor] = useState<DOMRect | null>(null)
 
   const { messageType, isHighlighted, isMention, isAction, isDeleted, raw } = message
 
@@ -138,6 +152,12 @@ function MessageRow({ message, index }: MessageRowProps) {
 
   const isRedeem = messageType === 'redeem'
 
+  // 7TV paint overrides the username color entirely
+  const paintStyle =
+    show7tvPaints && sevenTvCosmetics?.paint
+      ? paintToStyle(sevenTvCosmetics.paint)
+      : null
+
   // Boost dark Twitch colors to be readable on dark backgrounds
   const authorColor = message.authorColor
     ? readableColor(message.authorColor)
@@ -178,12 +198,28 @@ function MessageRow({ message, index }: MessageRowProps) {
       onMouseLeave={() => setTimeoutOpen(false)}
     >
       {showReplyContext && message.replyTo && (
-        <div className={styles.replyBar}>
+        <div className={clsx(styles.replyBar, { [styles.replyToMe]: isReplyToMe })}>
+          {/* Chatterino-style curved L-connector */}
+          <svg
+            className={styles.replyConnector}
+            width="12"
+            height="13"
+            viewBox="0 0 12 13"
+            fill="none"
+            aria-hidden
+          >
+            <path
+              d="M2 13 L2 5 Q2 2 5 2 L12 2"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
           <span className={styles.replyAuthor}>
-            ↩ @{message.replyTo.userDisplayName || message.replyTo.userLogin}
+            @{message.replyTo.userDisplayName || message.replyTo.userLogin}
           </span>
           {message.replyTo.msgBody && (
-            <span className={styles.replySnippet}>{': '}{message.replyTo.msgBody}</span>
+            <span className={styles.replySnippet}>: {message.replyTo.msgBody}</span>
           )}
         </div>
       )}
@@ -290,59 +326,63 @@ function MessageRow({ message, index }: MessageRowProps) {
 
           {showBadges && <InlineBadges badges={message.badges} />}
 
+          {show7tvBadges && sevenTvCosmetics?.badge && (() => {
+            const url = sevenTvBadgeUrl(sevenTvCosmetics.badge)
+            return url ? (
+              <img
+                src={url}
+                alt={sevenTvCosmetics.badge.tooltip}
+                title={sevenTvCosmetics.badge.tooltip}
+                className={styles.badge}
+                loading="lazy"
+                draggable={false}
+              />
+            ) : null
+          })()}
+
           {isRedeem && (
             <span className={styles.redeemTag}>
-              {message.customRewardId === 'highlighted-message' ? '✦ Highlight' : '★ Redeem'}
+              {message.customRewardId === 'highlighted-message'
+                ? '✦ Highlight'
+                : `★ ${message.rewardTitle || 'Redeem'}`}
             </span>
           )}
 
           {clickableUsernames && message.platform === 'twitch' && message.authorName ? (
-            <>
-              <span
-                className={styles.authorName}
-                style={{ color: authorColor, cursor: 'pointer' }}
-                title={`View ${message.authorName}'s profile`}
-                onClick={e => {
-                  e.stopPropagation()
-                  setUserCardAnchor((e.currentTarget as HTMLElement).getBoundingClientRect())
-                }}
-              >
-                {displayedName}
-              </span>
-              {userCardAnchor && (
-                <UserCard
-                  userId={message.authorId}
-                  login={message.authorName}
-                  channelId={message.channelId}
-                  anchorRect={userCardAnchor}
-                  onClose={() => setUserCardAnchor(null)}
-                  onModAction={(action, targetUserId, targetUserLogin) => {
-                    window.chatBridge.invoke('mod:action', {
-                      channelId: message.channelId,
-                      action,
-                      targetUserId,
-                      targetUserLogin,
-                      duration: action === 'timeout' ? 600 : undefined
-                    }).catch(console.error)
-                  }}
-                />
-              )}
-            </>
+            <span
+              className={styles.authorName}
+              style={paintStyle ?? { color: authorColor, cursor: 'pointer' }}
+              title={`View ${message.authorName}'s profile`}
+              onClick={e => {
+                e.stopPropagation()
+                window.chatBridge.invoke('usercard:openWindow', {
+                  userId: message.authorId,
+                  login: message.authorName,
+                  channelId: message.channelId
+                }).catch(console.error)
+              }}
+            >
+              {displayedName}
+            </span>
           ) : (
             <span
               className={styles.authorName}
-              style={{ color: authorColor }}
+              style={paintStyle ?? { color: authorColor }}
               title={`${message.authorName} (${message.platform})`}
             >
               {displayedName}
             </span>
           )}
 
-          <span className={styles.colon}>: </span>
+          {(!isRedeem || message.parts.length > 0) && (
+            <span className={styles.colon}>: </span>
+          )}
 
-          <span className={clsx(styles.messageBody, 'select-text')}>
-            <MessageContent parts={message.parts} />
-          </span>
+          {message.parts.length > 0 && (
+            <span className={clsx(styles.messageBody, 'select-text')}>
+              <MessageContent parts={message.parts} />
+            </span>
+          )}
         </span>
       </div>
     </div>

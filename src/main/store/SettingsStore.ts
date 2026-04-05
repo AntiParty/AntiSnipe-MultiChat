@@ -34,6 +34,8 @@ const settingsSchema = z.object({
     ffz: z.boolean().default(true)
   }).default({}),
   animateEmotes: z.enum(['always', 'focused', 'never']).default('always'),
+  show7tvBadges: z.boolean().default(true),
+  show7tvPaints: z.boolean().default(true),
   showDeletedMessages: z.enum(['cross-out', 'hide']).default('cross-out'),
   showReplyContext: z.boolean().default(true),
   pauseScrollOnHover: z.boolean().default(false),
@@ -92,6 +94,8 @@ class SettingsStore {
       usernameDisplay: this.store.get('usernameDisplay', 'display-name'),
       enabledProviders: this.store.get('enabledProviders', DEFAULT_SETTINGS.enabledProviders),
       animateEmotes: this.store.get('animateEmotes', 'always'),
+      show7tvBadges: this.store.get('show7tvBadges', true),
+      show7tvPaints: this.store.get('show7tvPaints', true),
       showDeletedMessages: this.store.get('showDeletedMessages', 'cross-out'),
       showReplyContext: this.store.get('showReplyContext', true),
       pauseScrollOnHover: this.store.get('pauseScrollOnHover', false),
