@@ -1,5 +1,5 @@
 {
-  "name": "antisinemultichat",
+  "name": "confluence",
   "version": "1.0.1",
   "description": "Cross-platform desktop chat aggregator for YouTube, Twitch, and Kick",
   "main": "out/main/index.js",
@@ -17,7 +17,7 @@
   },
   "build": {
     "appId": "com.antisnipe.multichat",
-    "productName": "AntiSnipe MultiChat",
+    "productName": "Confluence",
     "copyright": "Copyright © 2026",
     "directories": {
       "output": "dist",

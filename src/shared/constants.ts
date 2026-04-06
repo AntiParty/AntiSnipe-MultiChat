@@ -53,4 +53,4 @@ export const YOUTUBE_SCOPES = [
 ].join(' ')
 
 // Custom protocol
-export const CUSTOM_PROTOCOL = 'antisnipemultichat'
+export const CUSTOM_PROTOCOL = 'confluence'

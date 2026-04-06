@@ -38,7 +38,7 @@ export default function SettingsAuth() {
           <ol style={{ paddingLeft: '16px', margin: 0 }}>
             <li>Go to <span style={{ color: 'var(--accent)' }}>dev.twitch.tv/console</span> and log in</li>
             <li>Click <strong>Register Your Application</strong></li>
-            <li>Name: anything (e.g. "MultiChat")</li>
+            <li>Name: anything (e.g. "Confluence")</li>
             <li>OAuth Redirect URL: <code style={{ background: 'var(--surface-3)', padding: '1px 4px' }}>http://localhost:47891/auth/twitch</code></li>
             <li>Category: <strong>Chat Bot</strong> — click <strong>Create</strong></li>
             <li>Click <strong>Manage</strong> on your app, then <strong>New Secret</strong></li>

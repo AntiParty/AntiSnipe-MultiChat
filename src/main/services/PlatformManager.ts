@@ -9,7 +9,7 @@ import { settingsStore } from '../store/SettingsStore'
 import { emoteCacheManager } from '../emotes/EmoteCacheManager'
 import { tokenStore } from '../auth/TokenStore'
 import { twitchAuth } from '../auth/TwitchAuth'
-import { buildSelfMessage, normalizeTwitchMessage } from './twitch/TwitchMessageNormalizer'
+import { buildSelfMessage, buildSystemMessage, normalizeTwitchMessage } from './twitch/TwitchMessageNormalizer'
 import { parseIrcLine } from './twitch/TwitchIrcParser'
 import { RENDERER_CHANNELS } from '../../shared/types/ipc'
 import { TWITCH_HELIX_BASE } from '../../shared/constants'
@@ -100,6 +100,11 @@ class PlatformManager {
     broadcaster.send(RENDERER_CHANNELS.DELETE_MESSAGE, event)
   }
 
+  private sendSystemMessage(channelId: string, displayName: string, text: string): void {
+    const msg = buildSystemMessage(channelId, displayName, text)
+    broadcaster.enqueue(msg)
+  }
+
   private setConnectionState(channelId: string, status: ConnectionState['status'], error?: string): void {
     const state: ConnectionState = { channelId, status, error }
     this.connectionStates.set(channelId, state)
@@ -116,9 +121,21 @@ class PlatformManager {
 
     try {
       if (platform === 'twitch') {
+        const twitchToken = tokenStore.getAccessToken('twitch')
+        if (!twitchToken && !(settings.twitchClientId && settings.twitchClientSecret)) {
+          this.setConnectionState(channelId, 'error', 'Authentication required')
+          this.sendSystemMessage(channelId, displayName,
+            '⚠ Twitch authentication required — please log in via Settings → Auth')
+          return
+        }
+
         // broadcasterId and emote fetch happen automatically via ROOMSTATE after join
         await this.twitchService.joinChannel({ channelId, slug, displayName })
         this.setConnectionState(channelId, 'connected')
+
+        // Chatterino-style connected message
+        this.sendSystemMessage(channelId, displayName, `Connected to #${slug}`)
+
         if (settings.loadRecentMessages) {
           this.fetchRecentMessages(channelId, slug, displayName).catch(log.warn)
         }

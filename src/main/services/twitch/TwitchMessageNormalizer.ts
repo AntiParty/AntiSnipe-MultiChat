@@ -49,6 +49,32 @@ function tokenizeText(text: string, channelId: string, mentionKeywords: string[]
   return parts
 }
 
+export function buildSystemMessage(
+  channelId: string,
+  channelDisplayName: string,
+  text: string
+): NormalizedMessage {
+  return {
+    id: `system-${Date.now()}-${Math.random()}`,
+    platform: 'twitch',
+    channelId,
+    channelDisplayName,
+    authorId: '',
+    authorName: '',
+    authorDisplayName: '',
+    authorColor: null,
+    parts: [{ type: 'text', content: text }],
+    badges: [],
+    messageType: 'system',
+    isHighlighted: false,
+    isMention: false,
+    isAction: false,
+    isDeleted: false,
+    timestamp: Date.now(),
+    raw: text,
+  }
+}
+
 export function buildSelfMessage(
   channelId: string,
   channelDisplayName: string,

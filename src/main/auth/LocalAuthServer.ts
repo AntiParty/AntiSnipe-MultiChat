@@ -9,7 +9,7 @@ export const TWITCH_REDIRECT_URI = `http://localhost:${AUTH_CALLBACK_PORT}/auth/
 export const YOUTUBE_REDIRECT_URI = `http://localhost:${AUTH_CALLBACK_PORT}/auth/youtube`
 
 const SUCCESS_HTML =
-  '<!DOCTYPE html><html><head><title>MultiChat Auth</title></head>' +
+  '<!DOCTYPE html><html><head><title>Confluence Auth</title></head>' +
   '<body style="font-family:sans-serif;text-align:center;padding:60px;background:#111;color:#d9d9d9">' +
   '<h2>Authentication successful!</h2><p>You can close this tab.</p>' +
   '</body></html>'

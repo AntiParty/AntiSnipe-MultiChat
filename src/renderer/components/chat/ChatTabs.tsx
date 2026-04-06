@@ -29,7 +29,7 @@ const PLATFORM_ICONS: Record<Platform, React.ReactNode> = {
 
 const PLATFORM_HINTS: Record<Platform, React.ReactNode> = {
   twitch: <>Enter your channel name (e.g. <code style={{ background: 'var(--surface-3)', padding: '1px 4px', borderRadius: 2 }}>xqc</code>)</>,
-  youtube: <>Paste your stream's video ID or URL. Start your stream first, then grab the ID from the URL — e.g. <code style={{ background: 'var(--surface-3)', padding: '1px 4px', borderRadius: 2 }}>TlbHFJewzm4</code></>,
+  youtube: <>Enter your channel handle or a video/stream URL. Confluence will wait for you to go live automatically — e.g. <code style={{ background: 'var(--surface-3)', padding: '1px 4px', borderRadius: 2 }}>@channelname</code> or a full YouTube URL</>,
   kick: <>Enter your channel name (e.g. <code style={{ background: 'var(--surface-3)', padding: '1px 4px', borderRadius: 2 }}>xqc</code>)</>,
   tiktok: <>Enter the TikTok username without @ (e.g. <code style={{ background: 'var(--surface-3)', padding: '1px 4px', borderRadius: 2 }}>username</code>). Must be live.</>
 }
@@ -53,6 +53,7 @@ export default function ChatTabs() {
   const { settings, save } = useSettings()
 
   const [showAdd, setShowAdd] = useState(false)
+  const [changingChannelId, setChangingChannelId] = useState<string | null>(null)
   const [slug, setSlug] = useState('')
   const [platform, setPlatform] = useState<Platform>('twitch')
   const [connecting, setConnecting] = useState(false)
@@ -65,7 +66,7 @@ export default function ChatTabs() {
   useEffect(() => {
     if (!showAdd) return
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setShowAdd(false); setSlug('') }
+      if (e.key === 'Escape') { setShowAdd(false); setSlug(''); setChangingChannelId(null) }
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
@@ -78,6 +79,24 @@ export default function ChatTabs() {
     if (!trimmed || connecting) return
 
     const id = `${platform}:${trimmed}`
+
+    // Change channel mode: disconnect old, replace with new
+    if (changingChannelId) {
+      if (id === changingChannelId) {
+        setShowAdd(false); setSlug(''); setChangingChannelId(null); return
+      }
+      setConnecting(true)
+      await window.chatBridge.invoke('channel:disconnect', { channelId: changingChannelId })
+      removeChannel(changingChannelId)
+      const channel: ChannelConfig = { id, platform, slug: trimmed, displayName: slug.trim().replace(/^@/, ''), enabled: true }
+      addChannel(channel)
+      await save({ channels: [...settings.channels.filter(c => c.id !== changingChannelId && c.id !== id), channel] })
+      await window.chatBridge.invoke('channel:connect', { channelId: id, platform, slug: trimmed })
+      setSlug(''); setShowAdd(false); setConnecting(false); setChangingChannelId(null)
+      setActiveChannel(id)
+      return
+    }
+
     if (channels.some(c => c.id === id)) {
       setShowAdd(false)
       setSlug('')
@@ -101,6 +120,13 @@ export default function ChatTabs() {
     setShowAdd(false)
     setConnecting(false)
     setActiveChannel(id)
+  }
+
+  const handleChangeChannel = (channel: ChannelConfig) => {
+    setChangingChannelId(channel.id)
+    setPlatform(channel.platform)
+    setSlug('')
+    setShowAdd(true)
   }
 
   const handleRemove = async (channelId: string, e: React.MouseEvent) => {
@@ -149,6 +175,7 @@ export default function ChatTabs() {
             viewerCount={viewerCounts[channel.id]}
             onRemove={e => handleRemove(channel.id, e)}
             onRename={newName => handleRename(channel.id, newName)}
+            onChangeChannel={() => handleChangeChannel(channel)}
           />
         ))}
         <button
@@ -175,7 +202,7 @@ export default function ChatTabs() {
       {/* Centered modal overlay */}
       {showAdd && (
         <div
-          onClick={e => { if (e.target === e.currentTarget) { setShowAdd(false); setSlug('') } }}
+          onClick={e => { if (e.target === e.currentTarget) { setShowAdd(false); setSlug(''); setChangingChannelId(null) } }}
           style={{
             position: 'fixed',
             inset: 0,
@@ -204,10 +231,10 @@ export default function ChatTabs() {
               borderBottom: '1px solid var(--border)'
             }}>
               <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Add Channel
+                {changingChannelId ? 'Change Channel' : 'Add Channel'}
               </span>
               <button
-                onClick={() => { setShowAdd(false); setSlug('') }}
+                onClick={() => { setShowAdd(false); setSlug(''); setChangingChannelId(null) }}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: '2px' }}
               >
                 <X size={14} />
@@ -293,7 +320,7 @@ export default function ChatTabs() {
                   opacity: connecting ? 0.7 : 1
                 }}
               >
-                {connecting ? 'Connecting…' : `Add ${PLATFORM_LABELS[platform]} Channel`}
+                {connecting ? 'Connecting…' : changingChannelId ? `Switch to ${PLATFORM_LABELS[platform]} Channel` : `Add ${PLATFORM_LABELS[platform]} Channel`}
               </button>
             </form>
           </div>
@@ -312,9 +339,10 @@ interface TabProps {
   viewerCount?: number
   onRemove?: (e: React.MouseEvent) => void
   onRename?: (newName: string) => void
+  onChangeChannel?: () => void
 }
 
-function Tab({ label, isActive, onClick, platformColor, unread, viewerCount, onRemove, onRename }: TabProps) {
+function Tab({ label, isActive, onClick, platformColor, unread, viewerCount, onRemove, onRename, onChangeChannel }: TabProps) {
   const [hovered, setHovered] = useState(false)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [renaming, setRenaming] = useState(false)
@@ -492,6 +520,27 @@ function Tab({ label, isActive, onClick, platformColor, unread, viewerCount, onR
           >
             Rename
           </button>
+          {onChangeChannel && (
+            <button
+              onClick={() => { setMenu(null); onChangeChannel() }}
+              style={{
+                display: 'block',
+                width: '100%',
+                padding: '7px 12px',
+                background: 'none',
+                border: 'none',
+                borderTop: '1px solid var(--border)',
+                textAlign: 'left',
+                fontSize: '12px',
+                color: 'var(--text-primary)',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-3)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'none' }}
+            >
+              Change Channel
+            </button>
+          )}
           {onRemove && (
             <button
               onClick={e => { setMenu(null); onRemove(e) }}

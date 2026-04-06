@@ -10,7 +10,8 @@ import { parseIrcLine, nickFromPrefix } from './TwitchIrcParser'
 import {
   normalizeTwitchMessage,
   normalizeUserNotice,
-  normalizeRedeemEvent
+  normalizeRedeemEvent,
+  buildSystemMessage
 } from './TwitchMessageNormalizer'
 import { TwitchEventSubClient } from './TwitchEventSubClient'
 import {
@@ -176,6 +177,14 @@ export class TwitchService {
       log.info('Twitch IRC disconnected')
       this.clearTimers()
       if (!this.stopped && this.channels.size > 0) {
+        // Notify each channel chat that we're reconnecting
+        for (const handle of this.channels.values()) {
+          this.onMessage(buildSystemMessage(
+            handle.channelId,
+            handle.displayName,
+            'Reconnecting to Twitch…'
+          ))
+        }
         this.scheduleReconnect()
       }
     })
@@ -225,7 +234,17 @@ export class TwitchService {
         for (const handle of this.channels.values()) {
           this.ws?.send(`JOIN #${handle.slug}\r\n`)
           this.loadBadges(handle).catch(log.error)
+          // Only send "Connected" on reconnects (attempt > 0), not the initial join
+          // (PlatformManager already injects it on first connect)
+          if (this.reconnectAttempt > 0) {
+            this.onMessage(buildSystemMessage(
+              handle.channelId,
+              handle.displayName,
+              `Reconnected to #${handle.slug}`
+            ))
+          }
         }
+        this.reconnectAttempt = 0
         break
       }
 
@@ -341,9 +360,29 @@ export class TwitchService {
         break
       }
 
-      case 'NOTICE':
+      case 'NOTICE': {
+        const noticeText = msg.params[1] || msg.params[0] || ''
+        const noticeChannel = msg.params[0]?.slice(1)
+        const noticeHandle = noticeChannel ? this.findHandleBySlug(noticeChannel) : null
         log.info('Twitch NOTICE:', msg.params.join(' '))
+
+        // Auth failure — tell user to re-authenticate
+        if (
+          noticeText.toLowerCase().includes('login authentication failed') ||
+          noticeText.toLowerCase().includes('improperly formatted auth') ||
+          msg.tags['msg-id'] === 'msg_banned'
+        ) {
+          const target = noticeHandle ?? this.channels.values().next().value
+          if (target) {
+            this.onMessage(buildSystemMessage(
+              target.channelId,
+              target.displayName,
+              '⚠ Twitch authentication failed — please re-authenticate in Settings → Auth'
+            ))
+          }
+        }
         break
+      }
     }
   }
 

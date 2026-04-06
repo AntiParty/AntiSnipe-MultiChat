@@ -32,7 +32,7 @@ export default function TitleBar() {
         className="px-2 text-xs"
         style={{ color: 'var(--text-muted)', letterSpacing: '0.02em' }}
       >
-        MultiChat
+        Confluence
       </span>
 
       <div className="flex-1" />

@@ -2,6 +2,7 @@ import log from 'electron-log'
 import { youtubeApiClient } from './YouTubeApiClient'
 import { normalizeYouTubeMessage } from './YouTubeMessageNormalizer'
 import { settingsStore } from '../../store/SettingsStore'
+import { buildSystemMessage } from '../twitch/TwitchMessageNormalizer'
 import {
   YOUTUBE_DEFAULT_POLL_MS,
   YOUTUBE_DEDUP_WINDOW
@@ -11,6 +12,9 @@ import type { ConnectionStatus } from '../../../shared/types/channel'
 
 type OnMessages = (msgs: NormalizedMessage[]) => void
 type OnStatus = (channelId: string, status: ConnectionStatus, error?: string) => void
+
+// How often to re-check for a live stream while the channel is offline
+const OFFLINE_POLL_MS = 30_000
 
 export class YouTubeChannel {
   readonly channelId: string
@@ -41,9 +45,13 @@ export class YouTubeChannel {
   async start(): Promise<void> {
     this.stopped = false
     this.onStatus(this.channelId, 'connecting')
+    await this.tryConnect()
+  }
 
-    // Resolve the slug to a live chat ID.
-    // Accept: 11-char video ID, full watch URL (youtube.com/watch?v=...), or channel handle.
+  /** Attempt to find a live stream. If none found, go 'offline' and retry every 30s. */
+  private async tryConnect(): Promise<void> {
+    if (this.stopped) return
+
     let liveChatId: string | null = null
     let resolvedVideoId = this.slug
 
@@ -64,13 +72,28 @@ export class YouTubeChannel {
     }
 
     if (!liveChatId) {
-      this.onStatus(this.channelId, 'error', 'No active live stream found')
+      // Not live yet — go offline and retry
+      log.info(`YouTube ${this.slug}: no active stream, will retry in ${OFFLINE_POLL_MS / 1000}s`)
+      this.onStatus(this.channelId, 'offline')
+      if (!this.stopped) {
+        this.pollTimer = setTimeout(() => this.tryConnect(), OFFLINE_POLL_MS)
+      }
       return
     }
 
+    // Stream found — connect
     this.liveChatId = liveChatId
     this.onStatus(this.channelId, 'connected')
-    log.info(`YouTube channel ${this.slug} live chat ID: ${liveChatId}`)
+    log.info(`YouTube ${this.slug} live — chat ID: ${liveChatId}`)
+
+    // Inject system message into chat
+    const sysMsg = buildSystemMessage(
+      this.channelId,
+      this.displayName,
+      `▶ ${this.displayName} is now live on YouTube`
+    )
+    this.onMessages([sysMsg])
+
     this.poll()
   }
 
@@ -93,9 +116,37 @@ export class YouTubeChannel {
     const result = await youtubeApiClient.fetchMessages(this.liveChatId, this.nextPageToken)
 
     if (!result) {
-      // Null result = live stream ended or auth error
-      log.info(`YouTube channel ${this.slug} ended or auth error`)
-      this.onStatus(this.channelId, 'ended')
+      // Null = stream ended or auth error
+      log.info(`YouTube ${this.slug}: stream ended or auth error`)
+
+      const settings = settingsStore.get()
+      const hasAuth = !!(settings.googleClientId && settings.googleClientSecret)
+      if (!hasAuth) {
+        // Auth missing entirely
+        this.onStatus(this.channelId, 'error', 'YouTube auth required')
+        const authMsg = buildSystemMessage(
+          this.channelId,
+          this.displayName,
+          '⚠ YouTube authentication required — please re-authenticate in Settings → Auth'
+        )
+        this.onMessages([authMsg])
+        return
+      }
+
+      // Stream ended — go offline and wait for next stream
+      this.onStatus(this.channelId, 'offline')
+      this.liveChatId = null
+      this.nextPageToken = undefined
+      const endMsg = buildSystemMessage(
+        this.channelId,
+        this.displayName,
+        `■ ${this.displayName} stream ended — watching for next stream…`
+      )
+      this.onMessages([endMsg])
+
+      if (!this.stopped) {
+        this.pollTimer = setTimeout(() => this.tryConnect(), OFFLINE_POLL_MS)
+      }
       return
     }
 
@@ -117,7 +168,6 @@ export class YouTubeChannel {
         if (msg) messages.push(msg)
       }
 
-      // Keep dedup set bounded
       if (this.seenIds.size > YOUTUBE_DEDUP_WINDOW) {
         const arr = Array.from(this.seenIds)
         this.seenIds = new Set(arr.slice(-YOUTUBE_DEDUP_WINDOW))

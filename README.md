@@ -1,22 +1,24 @@
-<h1 align="center">AntiSnipe MultiChat</h1>
-
 <p align="center">
-  <strong>All your chats. One window.</strong><br />
-  A free, open-source multi-platform chat aggregator built for streamers.
+  <img src="assets/confluence-github-banner.png" alt="Confluence — Multi-Platform Chat" width="100%" />
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue" alt="Platforms" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
   <img src="https://img.shields.io/badge/built%20with-Electron%20%2B%20React-61dafb" alt="Stack" />
-  <img src="https://img.shields.io/badge/platforms-Twitch%20%7C%20YouTube%20%7C%20Kick%20%7C%20TikTok-orange" alt="Platforms" />
+  <img src="https://img.shields.io/badge/chat-Twitch%20%7C%20YouTube%20%7C%20Kick%20%7C%20TikTok-a78bfa" alt="Platforms" />
+</p>
+
+<p align="center">
+  <strong>All your chats. One window.</strong><br />
+  A free, open-source multi-platform chat aggregator built for streamers.
 </p>
 
 ---
 
-## What is AntiSnipe MultiChat?
+## What is Confluence?
 
-AntiSnipe MultiChat is a **desktop chat client** that pulls together your Twitch, YouTube, Kick, and TikTok live chats into a single, highly customizable window — so you never have to tab between browser dashboards again.
+Confluence is a **desktop chat client** that pulls together your Twitch, YouTube, Kick, and TikTok live chats into a single, highly customizable window — so you never have to tab between browser dashboards again.
 
 Built for streamers who multistream, have large communities, or simply want a cleaner, faster chat experience than what browser-based dashboards offer.
 
@@ -33,17 +35,17 @@ Built for streamers who multistream, have large communities, or simply want a cl
 | Platform | Chat | OAuth Login | Send Messages | Notes |
 |----------|------|-------------|---------------|-------|
 | Twitch   | ✓    | ✓           | ✓             | Full IRC, mod actions, badges |
-| YouTube  | ✓    | ✓           | ✓             | Requires live stream video ID |
+| YouTube  | ✓    | ✓           | ✓             | Auto-connects when you go live |
 | Kick     | ✓    | —           | —             | Public WebSocket, no login needed |
 | TikTok   | ✓    | —           | —             | Live chat + gifts, no login needed |
 
-Add unlimited channels across any platform. Switch between them with tabs, or view all chats merged into a single **All** feed. Right-click any tab to rename or remove it.
+Add unlimited channels across any platform. Switch between them with tabs, or view all chats merged into a single **All** feed. Right-click any tab to **rename**, **change channel**, or **remove** it.
 
 ### Third-Party Emotes
 
 Full support for the emote providers your community uses:
 
-- **7TV** — global and per-channel emotes, animated WebP
+- **7TV** — global and per-channel emotes, animated WebP, badges, and username paints
 - **BetterTTV (BTTV)** — global and channel emotes, GIF support
 - **FrankerFaceZ (FFZ)** — global and channel emotes
 
@@ -65,7 +67,7 @@ Start typing `@` in the chat input and a suggestion dropdown appears, populated 
 
 ### Reply Context
 
-When a chatter replies to someone, the original message is shown as a quoted bar directly above the reply — the same way Twitch's native client renders it.
+When a chatter replies to someone, the original message is shown as a quoted bar directly above the reply. Replies directed at you are highlighted in gold so they stand out instantly.
 
 ### Platform Icons
 
@@ -105,7 +107,7 @@ When you join a Twitch channel, the last 100 messages are fetched from the [rece
 
 ### Auto-Updates
 
-AntiSnipe MultiChat checks for updates in the background and notifies you with a banner when one is ready. Updates are downloaded automatically — click **Restart & Install** to apply, or install later from the Settings → General → Updates section.
+Confluence checks for updates in the background and notifies you with a banner when one is ready. Updates are downloaded automatically — click **Restart & Install** to apply, or install later from Settings → General → Updates.
 
 ### Performance
 
@@ -124,9 +126,9 @@ Head to the [Releases](https://github.com/Antiparty/AntiSnipe-MultiChat/releases
 
 | Platform | File |
 |----------|------|
-| Windows  | `AntiSnipe-MultiChat-Setup-x.x.x.exe` |
-| macOS    | `AntiSnipe-MultiChat-x.x.x.dmg` |
-| Linux    | `AntiSnipe-MultiChat-x.x.x.AppImage` |
+| Windows  | `Confluence-Setup-x.x.x.exe` |
+| macOS    | `Confluence-x.x.x.dmg` |
+| Linux    | `Confluence-x.x.x.AppImage` |
 
 ### Build from Source
 
@@ -157,15 +159,13 @@ npm run package:linux  # AppImage + .deb
 3. Enter the channel identifier (see platform notes below)
 4. Click **Add Channel**
 
-Right-click any tab at any time to **rename** or **remove** it.
+Right-click any tab at any time to **rename**, **change channel**, or **remove** it. Right-click the live viewer count in the header to **clear chat** locally.
 
 #### Twitch
 Enter the channel name (e.g. `xqc`). No login required to read chat. Log in via Settings → Auth to send messages and see mod actions.
 
 #### YouTube
-You must have an **active live stream** running first. Paste the video ID or full URL from your stream (e.g. `TlbHFJewzm4` or `https://www.youtube.com/live/TlbHFJewzm4`). YouTube chat only exists while a stream is live. Log in via Settings → Auth to send messages.
-
-> **Note:** YouTube channel handles (e.g. `@yourname`) are also supported but require the YouTube Search API and only work for public streams. For your own streams — including unlisted — always use the video ID.
+Enter your channel handle (e.g. `@yourname`) or paste a video/stream URL. Confluence will automatically connect when you go live — no need to start your stream first. Log in via Settings → Auth to send messages.
 
 #### Kick
 Enter the channel slug (e.g. `xqc`). No login required. Chat is read via Kick's public Pusher WebSocket.
@@ -184,7 +184,7 @@ Enter the username without `@` (e.g. `username`). The streamer must be live. Cha
 3. Set **OAuth Redirect URL** to `http://localhost:47891/auth/twitch`
 4. Set **Category** to **Chat Bot** and click **Create**
 5. Click **Manage → New Secret** and copy both **Client ID** and **Client Secret**
-6. In AntiSnipe MultiChat: **Settings → Auth → Twitch**, paste both values and click **Connect**
+6. In Confluence: **Settings → Auth → Twitch**, paste both values and click **Connect**
 
 ### YouTube
 
@@ -194,7 +194,7 @@ Enter the username without `@` (e.g. `username`). The streamer must be live. Cha
 4. Add `http://localhost:47891/auth/youtube` as an authorized redirect URI
 5. Enable **YouTube Data API v3** in the API Library
 6. Copy both the **Client ID** and **Client Secret**
-7. In AntiSnipe MultiChat: **Settings → Auth → YouTube**, paste both values and click **Connect**
+7. In Confluence: **Settings → Auth → YouTube**, paste both values and click **Connect**
 
 > **Quota note:** YouTube's free daily API quota covers approximately 5–6 hours of live chat polling. For heavier use, request a quota increase in Google Cloud Console.
 
@@ -238,6 +238,8 @@ Open Settings with `Ctrl + ,` or the gear icon.
 | 7TV | On / Off | On | 7TV global and channel emotes |
 | BTTV | On / Off | On | BetterTTV emotes |
 | FFZ | On / Off | On | FrankerFaceZ emotes |
+| 7TV Badges | On / Off | On | Show 7TV badges next to usernames |
+| 7TV Paints | On / Off | On | Animated gradient username colors from 7TV |
 | Emote Scale | 0.5× – 3× | 1.5× | Emote size relative to font |
 | Animation | Always / Focused / Never | Always | When animated emotes play |
 
@@ -259,7 +261,7 @@ src/
 ├── main/               Electron main process (Node.js)
 │   ├── services/
 │   │   ├── twitch/     IRC WebSocket, message normalizer, badge resolver
-│   │   ├── youtube/    Data API v3 polling, OAuth client
+│   │   ├── youtube/    Data API v3 polling, OAuth client, offline retry loop
 │   │   ├── kick/       Pusher WebSocket
 │   │   └── tiktok/     tiktok-live-connector, gift/sub normalizer
 │   ├── emotes/         7TV / BTTV / FFZ fetch, disk cache, resolver
@@ -369,7 +371,7 @@ AntiSnipe runs entirely on your own hardware:
 
 > **[antisnipe.com](https://antisnipe.com)**
 
-AntiSnipe MultiChat is free and open source. AntiSnipe is a paid product — built for streamers who need a professional-grade solution and want it to just work. Use MultiChat to stay on top of your community. Use AntiSnipe to stay one step ahead of everyone else.
+Confluence is free and open source. AntiSnipe is a paid product — built for streamers who need a professional-grade solution and want it to just work. Use Confluence to stay on top of your community. Use AntiSnipe to stay one step ahead of everyone else.
 
 ---
 
