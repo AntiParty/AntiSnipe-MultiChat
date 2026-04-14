@@ -4,6 +4,8 @@ import type { ChatSlice, ChatterInfo } from './slices/chatSlice'
 import type { ChannelsSlice } from './slices/channelsSlice'
 import type { SettingsSlice } from './slices/settingsSlice'
 import type { AuthSlice } from './slices/authSlice'
+import type { ViewerSlice } from './slices/viewerSlice'
+import type { ViewerEntry, ViewerListPayload } from '@shared/types/viewer'
 import type { EmoteData } from '@shared/types/emote'
 import type { NormalizedMessage, MessagePart } from '@shared/types/message'
 import { DEFAULT_SETTINGS } from '@shared/types/settings'
@@ -34,6 +36,22 @@ function retokenizeParts(parts: MessagePart[], emoteMap: Record<string, EmoteDat
 // Keep only the N most-recently-seen chatters per channel
 const MAX_CHATTERS = 500
 
+function deriveViewerRole(badges: import('@shared/types/message').BadgeInfo[]): import('@shared/types/viewer').ViewerRole {
+  for (const b of badges) {
+    if (b.id === 'broadcaster') return 'broadcaster'
+  }
+  for (const b of badges) {
+    if (b.id === 'moderator') return 'mod'
+  }
+  for (const b of badges) {
+    if (b.id === 'vip') return 'vip'
+  }
+  for (const b of badges) {
+    if (b.id === 'subscriber' || b.id === 'founder') return 'sub'
+  }
+  return 'viewer'
+}
+
 export interface UpdateStatus {
   checking: boolean
   available: string | null   // version string if update available but not yet downloaded
@@ -41,7 +59,7 @@ export interface UpdateStatus {
   error: string | null
 }
 
-export type RootState = ChatSlice & ChannelsSlice & SettingsSlice & AuthSlice & {
+export type RootState = ChatSlice & ChannelsSlice & SettingsSlice & AuthSlice & ViewerSlice & {
   windowFocused: boolean
   setWindowFocused: (v: boolean) => void
   updateStatus: UpdateStatus
@@ -87,6 +105,43 @@ function buildChatSlice(set: SetState): ChatSlice {
             arr.push({ login: msg.authorName, displayName: msg.authorDisplayName })
             // Evict oldest entry if over cap
             if (arr.length > MAX_CHATTERS) arr.splice(0, 1)
+
+            // Update viewer list tracking
+            if (!state.viewersByChannel[channelId]) {
+              state.viewersByChannel[channelId] = []
+            }
+            const viewers = state.viewersByChannel[channelId]
+            const vi = viewers.findIndex((v: ViewerEntry) => v.login === msg.authorName)
+            const role = deriveViewerRole(msg.badges)
+            if (vi !== -1) {
+              viewers[vi].messageCount++
+              viewers[vi].lastSeenAt = msg.timestamp
+              viewers[vi].displayName = msg.authorDisplayName
+              viewers[vi].badges = msg.badges
+              viewers[vi].color = msg.authorColor
+              viewers[vi].role = role
+              viewers[vi].isMod = role === 'mod' || role === 'broadcaster'
+              viewers[vi].isVip = role === 'vip'
+              viewers[vi].isSub = role === 'sub' || role === 'broadcaster'
+              viewers[vi].isBroadcaster = role === 'broadcaster'
+            } else {
+              viewers.push({
+                userId: msg.authorId,
+                login: msg.authorName,
+                displayName: msg.authorDisplayName,
+                platform: msg.platform,
+                role,
+                isMod: role === 'mod' || role === 'broadcaster',
+                isVip: role === 'vip',
+                isSub: role === 'sub' || role === 'broadcaster',
+                isBroadcaster: role === 'broadcaster',
+                badges: msg.badges,
+                color: msg.authorColor,
+                messageCount: 1,
+                lastSeenAt: msg.timestamp,
+                fromApi: false
+              })
+            }
           }
         }
       }),
@@ -161,6 +216,9 @@ function buildChannelsSlice(set: SetState): ChannelsSlice {
         state.channels = state.channels.filter(c => c.id !== channelId)
         delete state.connectionStates[channelId]
         delete state.viewerCountsByChannel[channelId]
+        delete state.viewersByChannel[channelId]
+        delete state.viewerTotalByChannel[channelId]
+        delete state.viewerIsApiByChannel[channelId]
       }),
     updateConnectionState: cs =>
       set(state => { state.connectionStates[cs.channelId] = cs })
@@ -190,6 +248,46 @@ function buildAuthSlice(set: SetState): AuthSlice {
   }
 }
 
+function buildViewerSlice(set: SetState): ViewerSlice {
+  return {
+    viewersByChannel: {},
+    viewerTotalByChannel: {},
+    viewerIsApiByChannel: {},
+    viewerListOpen: false,
+    setViewerList: (payload: ViewerListPayload) =>
+      set(state => {
+        const { channelId, viewers, totalCount, isApiData } = payload
+        if (isApiData) {
+          // Merge API entries with existing message-derived entries
+          const existing = state.viewersByChannel[channelId] ?? []
+          const byLogin = new Map<string, ViewerEntry>(existing.map((v: ViewerEntry) => [v.login, v]))
+          for (const apiEntry of viewers) {
+            const known = byLogin.get(apiEntry.login)
+            if (known) {
+              // Keep message-derived role/badges/color/messageCount, just mark as seen in API
+              known.fromApi = true
+              known.userId = known.userId || apiEntry.userId
+            } else {
+              byLogin.set(apiEntry.login, apiEntry)
+            }
+          }
+          state.viewersByChannel[channelId] = Array.from(byLogin.values())
+        } else {
+          // Message-derived push — handled inline in addMessages; just update meta
+          if (!state.viewersByChannel[channelId]) state.viewersByChannel[channelId] = []
+        }
+        state.viewerTotalByChannel[channelId] = totalCount
+        state.viewerIsApiByChannel[channelId] = isApiData
+      }),
+    toggleViewerList: () =>
+      set(state => { state.viewerListOpen = !state.viewerListOpen }),
+    openViewerList: () =>
+      set(state => { state.viewerListOpen = true }),
+    closeViewerList: () =>
+      set(state => { state.viewerListOpen = false })
+  }
+}
+
 export const useStore = create<RootState>()(
   immer((set, _get) => {
     const s = set as unknown as SetState
@@ -198,6 +296,7 @@ export const useStore = create<RootState>()(
       ...buildChannelsSlice(s),
       ...buildSettingsSlice(s),
       ...buildAuthSlice(s),
+      ...buildViewerSlice(s),
       windowFocused: true,
       setWindowFocused: (v: boolean) => set(state => { (state as RootState).windowFocused = v }),
       updateStatus: { checking: false, available: null, downloaded: null, error: null },

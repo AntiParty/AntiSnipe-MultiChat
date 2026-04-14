@@ -7,6 +7,8 @@ export default function ChannelHeader() {
   const viewerCounts = useStore(s => s.viewerCountsByChannel)
   const connectionStates = useStore(s => s.connectionStates)
   const clearChannel = useStore(s => s.clearChannel)
+  const viewerListOpen = useStore(s => s.viewerListOpen)
+  const toggleViewerList = useStore(s => s.toggleViewerList)
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -109,6 +111,26 @@ export default function ChannelHeader() {
             </span>
           </span>
         )}
+        <div style={{ flex: 1 }} />
+        <button
+          onClick={toggleViewerList}
+          title={viewerListOpen ? 'Hide viewer list' : 'Show viewer list'}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: viewerListOpen ? 'var(--text-primary)' : 'var(--text-muted)',
+            padding: '0 2px',
+            fontSize: '13px',
+            lineHeight: 1,
+            display: 'flex',
+            alignItems: 'center'
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = viewerListOpen ? 'var(--text-primary)' : 'var(--text-muted)' }}
+        >
+          ☰
+        </button>
       </div>
 
       {menu && (

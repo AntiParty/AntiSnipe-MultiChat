@@ -8,9 +8,11 @@ import ChatTabs from './components/chat/ChatTabs'
 import ChannelHeader from './components/chat/ChannelHeader'
 import SettingsModal from './components/settings/SettingsModal'
 import UpdateBanner from './components/layout/UpdateBanner'
+import ViewerListPanel from './components/viewer/ViewerListPanel'
 
 export default function App() {
   const activeChannelId = useStore(s => s.activeChannelId)
+  const viewerListOpen = useStore(s => s.viewerListOpen)
   const theme = useStore(s => s.settings.theme)
   const fontSize = useStore(s => s.settings.fontSize)
   const emoteScale = useStore(s => s.settings.emoteScale)
@@ -118,7 +120,14 @@ export default function App() {
       <UpdateBanner />
       <ChatTabs />
       <ChannelHeader />
-      <ChatPane key={activeChannelId} />
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <ChatPane key={activeChannelId} />
+        </div>
+        {viewerListOpen && activeChannelId !== 'all' && (
+          <ViewerListPanel channelId={activeChannelId} />
+        )}
+      </div>
       <StatusBar />
       <SettingsModal />
     </div>

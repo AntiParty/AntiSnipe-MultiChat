@@ -226,6 +226,10 @@ export class TwitchService {
         this.ws?.send(`PONG :${msg.params[0] || 'tmi.twitch.tv'}\r\n`)
         break
 
+      case 'PONG':
+        if (this.pongTimer) { clearTimeout(this.pongTimer); this.pongTimer = null }
+        break
+
       case '001':
       case '376': {
         // Connection confirmed — join all channels

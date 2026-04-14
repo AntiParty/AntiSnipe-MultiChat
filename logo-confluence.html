@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Confluence — Brand</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0a0a12;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      padding: 56px 48px;
+      line-height: 1;
+    }
+
+    .section-label {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #444;
+      margin-bottom: 28px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #1c1c28;
+    }
+
+    .section { margin-bottom: 64px; }
+
+    /* ── Hero ── */
+    .hero {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      margin-bottom: 72px;
+    }
+    .hero-wordmark {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .hero-name {
+      font-size: 52px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(120deg, #c4b5fd 0%, #818cf8 45%, #67e8f9 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-tagline {
+      font-size: 12px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #4a4a6a;
+      padding-left: 3px;
+    }
+
+    /* ── Grid layouts ── */
+    .row {
+      display: flex;
+      align-items: flex-start;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+    .tile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .tile-label {
+      font-size: 10px;
+      color: #3a3a55;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* Dark bg chip */
+    .on-dark {
+      background: #0f0f1a;
+      border: 1px solid #1e1e30;
+      border-radius: 16px;
+      padding: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* Light bg chip */
+    .on-light {
+      background: #f0f0f7;
+      border-radius: 16px;
+      padding: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* Gradient bg chip */
+    .on-grad {
+      background: linear-gradient(135deg, #1a0533 0%, #0d1a3a 100%);
+      border-radius: 16px;
+      padding: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* App icon rounded square */
+    .app-icon-wrap {
+      border-radius: 22.5%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     HERO — Primary lockup
+═══════════════════════════════════════════════════ -->
+<div class="hero">
+  <!-- Primary mark at large size -->
+  <svg width="120" height="108" viewBox="0 0 120 108" fill="none">
+    <defs>
+      <!-- Stream gradients -->
+      <linearGradient id="sL" x1="6" y1="0" x2="54" y2="100" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#a78bfa"/>
+        <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="sC" x1="60" y1="0" x2="60" y2="56" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#c4b5fd"/>
+        <stop offset="100%" stop-color="#818cf8" stop-opacity="0.1"/>
+      </linearGradient>
+      <linearGradient id="sR" x1="114" y1="0" x2="66" y2="100" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#67e8f9"/>
+        <stop offset="100%" stop-color="#0891b2" stop-opacity="0"/>
+      </linearGradient>
+      <!-- Output stream -->
+      <linearGradient id="sO" x1="60" y1="54" x2="60" y2="108" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#a78bfa"/>
+        <stop offset="100%" stop-color="#6d28d9" stop-opacity="0.3"/>
+      </linearGradient>
+      <!-- Node glow -->
+      <radialGradient id="nodeGlow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#c4b5fd" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#c4b5fd" stop-opacity="0"/>
+      </radialGradient>
+      <!-- Drop shadow filter -->
+      <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+        <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+      </filter>
+    </defs>
+
+    <!-- Left stream -->
+    <path d="M 9 6 C 9 6 18 6 30 28 C 40 46 50 52 60 56"
+          stroke="url(#sL)" stroke-width="5.5" stroke-linecap="round" fill="none" filter="url(#glow)"/>
+    <!-- Center stream -->
+    <path d="M 60 2 L 60 56"
+          stroke="url(#sC)" stroke-width="5.5" stroke-linecap="round" fill="none" filter="url(#glow)"/>
+    <!-- Right stream -->
+    <path d="M 111 6 C 111 6 102 6 90 28 C 80 46 70 52 60 56"
+          stroke="url(#sR)" stroke-width="5.5" stroke-linecap="round" fill="none" filter="url(#glow)"/>
+
+    <!-- Node glow halo -->
+    <circle cx="60" cy="56" r="20" fill="url(#nodeGlow)"/>
+
+    <!-- Node ring -->
+    <circle cx="60" cy="56" r="9" fill="#0f0f1a" stroke="#a78bfa" stroke-width="2"/>
+    <!-- Node core -->
+    <circle cx="60" cy="56" r="5" fill="#c4b5fd"/>
+
+    <!-- Output stream -->
+    <path d="M 60 65 L 60 106"
+          stroke="url(#sO)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+
+    <!-- Subtle tick marks on streams (like channel indicators) -->
+    <circle cx="9"   cy="6"   r="3" fill="#a78bfa" opacity="0.7"/>
+    <circle cx="60"  cy="2"   r="3" fill="#c4b5fd" opacity="0.7"/>
+    <circle cx="111" cy="6"   r="3" fill="#67e8f9" opacity="0.7"/>
+  </svg>
+
+  <div class="hero-wordmark">
+    <div class="hero-name">confluence</div>
+    <div class="hero-tagline">Multi-Platform Chat</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 1 — Mark variations (icon only)
+═══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Mark — Icon Only</div>
+  <div class="row">
+
+    <!-- 256px on dark -->
+    <div class="tile">
+      <div class="on-dark">
+        <svg width="128" height="116" viewBox="0 0 120 108" fill="none">
+          <defs>
+            <linearGradient id="a_sL" x1="6" y1="0" x2="54" y2="100" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#a78bfa"/>
+              <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="a_sC" x1="60" y1="0" x2="60" y2="56" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#c4b5fd"/>
+              <stop offset="100%" stop-color="#818cf8" stop-opacity="0.1"/>
+            </linearGradient>
+            <linearGradient id="a_sR" x1="114" y1="0" x2="66" y2="100" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#67e8f9"/>
+              <stop offset="100%" stop-color="#0891b2" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="a_sO" x1="60" y1="54" x2="60" y2="108" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#a78bfa"/>
+              <stop offset="100%" stop-color="#6d28d9" stop-opacity="0.3"/>
+            </linearGradient>
+            <radialGradient id="a_ng" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#c4b5fd" stop-opacity="0.35"/>
+              <stop offset="100%" stop-color="#c4b5fd" stop-opacity="0"/>
+            </radialGradient>
+            <filter id="a_glow"><feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/></filter>
+          </defs>
+          <path d="M 9 6 C 9 6 18 6 30 28 C 40 46 50 52 60 56" stroke="url(#a_sL)" stroke-width="5.5" stroke-linecap="round" fill="none" filter="url(#a_glow)"/>
+          <path d="M 60 2 L 60 56" stroke="url(#a_sC)" stroke-width="5.5" stroke-linecap="round" fill="none" filter="url(#a_glow)"/>
+          <path d="M 111 6 C 111 6 102 6 90 28 C 80 46 70 52 60 56" stroke="url(#a_sR)" stroke-width="5.5" stroke-linecap="round" fill="none" filter="url(#a_glow)"/>
+          <circle cx="60" cy="56" r="20" fill="url(#a_ng)"/>
+          <circle cx="60" cy="56" r="9" fill="#0f0f1a" stroke="#a78bfa" stroke-width="2"/>
+          <circle cx="60" cy="56" r="5" fill="#c4b5fd"/>
+          <path d="M 60 65 L 60 106" stroke="url(#a_sO)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <circle cx="9"   cy="6"  r="3" fill="#a78bfa" opacity="0.7"/>
+          <circle cx="60"  cy="2"  r="3" fill="#c4b5fd" opacity="0.7"/>
+          <circle cx="111" cy="6"  r="3" fill="#67e8f9" opacity="0.7"/>
+        </svg>
+      </div>
+      <span class="tile-label">On Dark</span>
+    </div>
+
+    <!-- On gradient bg -->
+    <div class="tile">
+      <div class="on-grad">
+        <svg width="128" height="116" viewBox="0 0 120 108" fill="none">
+          <defs>
+            <linearGradient id="b_sL" x1="6" y1="0" x2="54" y2="100" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#e9d5ff"/>
+              <stop offset="100%" stop-color="#a78bfa" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="b_sC" x1="60" y1="0" x2="60" y2="56" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="100%" stop-color="#c4b5fd" stop-opacity="0.1"/>
+            </linearGradient>
+            <linearGradient id="b_sR" x1="114" y1="0" x2="66" y2="100" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#a5f3fc"/>
+              <stop offset="100%" stop-color="#67e8f9" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="b_sO" x1="60" y1="54" x2="60" y2="108" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#c4b5fd"/>
+              <stop offset="100%" stop-color="#7c3aed" stop-opacity="0.2"/>
+            </linearGradient>
+            <radialGradient id="b_ng" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.25"/>
+              <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+            </radialGradient>
+            <filter id="b_glow"><feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/></filter>
+          </defs>
+          <path d="M 9 6 C 9 6 18 6 30 28 C 40 46 50 52 60 56" stroke="url(#b_sL)" stroke-width="5.5" stroke-linecap="round" fill="none" filter="url(#b_glow)"/>
+          <path d="M 60 2 L 60 56" stroke="url(#b_sC)" stroke-width="5.5" stroke-linecap="round" fill="none" filter="url(#b_glow)"/>
+          <path d="M 111 6 C 111 6 102 6 90 28 C 80 46 70 52 60 56" stroke="url(#b_sR)" stroke-width="5.5" stroke-linecap="round" fill="none" filter="url(#b_glow)"/>
+          <circle cx="60" cy="56" r="20" fill="url(#b_ng)"/>
+          <circle cx="60" cy="56" r="9" fill="rgba(13,26,58,0.6)" stroke="#e9d5ff" stroke-width="2"/>
+          <circle cx="60" cy="56" r="5" fill="#ffffff"/>
+          <path d="M 60 65 L 60 106" stroke="url(#b_sO)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <circle cx="9"   cy="6"  r="3" fill="#e9d5ff" opacity="0.8"/>
+          <circle cx="60"  cy="2"  r="3" fill="#ffffff"  opacity="0.8"/>
+          <circle cx="111" cy="6"  r="3" fill="#a5f3fc"  opacity="0.8"/>
+        </svg>
+      </div>
+      <span class="tile-label">On Gradient</span>
+    </div>
+
+    <!-- On light bg -->
+    <div class="tile">
+      <div class="on-light">
+        <svg width="128" height="116" viewBox="0 0 120 108" fill="none">
+          <defs>
+            <linearGradient id="c_sL" x1="6" y1="0" x2="54" y2="100" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#7c3aed"/>
+              <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="c_sC" x1="60" y1="0" x2="60" y2="56" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#6d28d9"/>
+              <stop offset="100%" stop-color="#6d28d9" stop-opacity="0.05"/>
+            </linearGradient>
+            <linearGradient id="c_sR" x1="114" y1="0" x2="66" y2="100" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#0891b2"/>
+              <stop offset="100%" stop-color="#0891b2" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="c_sO" x1="60" y1="54" x2="60" y2="108" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#7c3aed"/>
+              <stop offset="100%" stop-color="#6d28d9" stop-opacity="0.15"/>
+            </linearGradient>
+            <radialGradient id="c_ng" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.15"/>
+              <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <path d="M 9 6 C 9 6 18 6 30 28 C 40 46 50 52 60 56" stroke="url(#c_sL)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <path d="M 60 2 L 60 56" stroke="url(#c_sC)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <path d="M 111 6 C 111 6 102 6 90 28 C 80 46 70 52 60 56" stroke="url(#c_sR)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <circle cx="60" cy="56" r="20" fill="url(#c_ng)"/>
+          <circle cx="60" cy="56" r="9" fill="#f0f0f7" stroke="#7c3aed" stroke-width="2"/>
+          <circle cx="60" cy="56" r="5" fill="#7c3aed"/>
+          <path d="M 60 65 L 60 106" stroke="url(#c_sO)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <circle cx="9"   cy="6"  r="3" fill="#7c3aed" opacity="0.7"/>
+          <circle cx="60"  cy="2"  r="3" fill="#6d28d9" opacity="0.7"/>
+          <circle cx="111" cy="6"  r="3" fill="#0891b2" opacity="0.7"/>
+        </svg>
+      </div>
+      <span class="tile-label">On Light</span>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 2 — Horizontal lockup
+═══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Horizontal Lockup — With Wordmark</div>
+  <div class="row">
+
+    <!-- Full color -->
+    <div class="tile">
+      <div class="on-dark" style="padding: 28px 36px;">
+        <div style="display:flex;align-items:center;gap:18px;">
+          <!-- Compact mark -->
+          <svg width="48" height="44" viewBox="0 0 120 108" fill="none">
+            <defs>
+              <linearGradient id="h_sL" x1="6" y1="0" x2="54" y2="100" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#a78bfa"/>
+                <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="h_sC" x1="60" y1="0" x2="60" y2="56" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#c4b5fd"/>
+                <stop offset="100%" stop-color="#818cf8" stop-opacity="0.1"/>
+              </linearGradient>
+              <linearGradient id="h_sR" x1="114" y1="0" x2="66" y2="100" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#67e8f9"/>
+                <stop offset="100%" stop-color="#0891b2" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="h_sO" x1="60" y1="54" x2="60" y2="108" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#a78bfa"/>
+                <stop offset="100%" stop-color="#6d28d9" stop-opacity="0.3"/>
+              </linearGradient>
+              <radialGradient id="h_ng" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#c4b5fd" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="#c4b5fd" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <path d="M 9 6 C 9 6 18 6 30 28 C 40 46 50 52 60 56" stroke="url(#h_sL)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+            <path d="M 60 2 L 60 56" stroke="url(#h_sC)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+            <path d="M 111 6 C 111 6 102 6 90 28 C 80 46 70 52 60 56" stroke="url(#h_sR)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+            <circle cx="60" cy="56" r="18" fill="url(#h_ng)"/>
+            <circle cx="60" cy="56" r="9" fill="#0f0f1a" stroke="#a78bfa" stroke-width="2"/>
+            <circle cx="60" cy="56" r="5" fill="#c4b5fd"/>
+            <path d="M 60 65 L 60 106" stroke="url(#h_sO)" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+            <circle cx="9"   cy="6" r="3" fill="#a78bfa" opacity="0.7"/>
+            <circle cx="60"  cy="2" r="3" fill="#c4b5fd" opacity="0.7"/>
+            <circle cx="111" cy="6" r="3" fill="#67e8f9" opacity="0.7"/>
+          </svg>
+          <!-- Wordmark -->
+          <div>
+            <div style="font-size:26px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(105deg,#c4b5fd 0%,#818cf8 50%,#67e8f9 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">confluence</div>
+            <div style="font-size:9px;letter-spacing:0.2em;color:#3a3a5a;text-transform:uppercase;margin-top:3px;">Multi-Platform Chat</div>
+          </div>
+        </div>
+      </div>
+      <span class="tile-label">Full Color</span>
+    </div>
+
+    <!-- One-color white -->
+    <div class="tile">
+      <div style="background:#7c3aed;border-radius:16px;padding:28px 36px;display:flex;align-items:center;justify-content:center;">
+        <div style="display:flex;align-items:center;gap:18px;">
+          <svg width="48" height="44" viewBox="0 0 120 108" fill="none">
+            <path d="M 9 6 C 9 6 18 6 30 28 C 40 46 50 52 60 56" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+            <path d="M 60 2 L 60 56" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none" opacity="0.85"/>
+            <path d="M 111 6 C 111 6 102 6 90 28 C 80 46 70 52 60 56" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+            <circle cx="60" cy="56" r="9" fill="#7c3aed" stroke="white" stroke-width="2"/>
+            <circle cx="60" cy="56" r="5" fill="white"/>
+            <path d="M 60 65 L 60 106" stroke="white" stroke-width="5.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+            <circle cx="9"   cy="6" r="3" fill="white" opacity="0.7"/>
+            <circle cx="60"  cy="2" r="3" fill="white" opacity="0.9"/>
+            <circle cx="111" cy="6" r="3" fill="white" opacity="0.7"/>
+          </svg>
+          <div style="font-size:26px;font-weight:800;letter-spacing:-0.02em;color:white;">confluence</div>
+        </div>
+      </div>
+      <span class="tile-label">On Brand Color</span>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 3 — App Icon sizes
+═══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">App Icon — Rounded Square</div>
+  <div class="row" style="align-items:flex-end;">
+
+    <!-- 256 -->
+    <div class="tile">
+      <div class="app-icon-wrap" style="width:96px;height:96px;background:linear-gradient(145deg,#13001f 0%,#0c1333 100%);">
+        <svg width="64" height="58" viewBox="0 0 120 108" fill="none">
+          <defs>
+            <linearGradient id="i_sL" x1="6" y1="0" x2="54" y2="100" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/></linearGradient>
+            <linearGradient id="i_sC" x1="60" y1="0" x2="60" y2="56" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#c4b5fd"/><stop offset="100%" stop-color="#818cf8" stop-opacity="0.1"/></linearGradient>
+            <linearGradient id="i_sR" x1="114" y1="0" x2="66" y2="100" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#67e8f9"/><stop offset="100%" stop-color="#0891b2" stop-opacity="0"/></linearGradient>
+            <linearGradient id="i_sO" x1="60" y1="54" x2="60" y2="108" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#6d28d9" stop-opacity="0.3"/></linearGradient>
+            <radialGradient id="i_ng" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#c4b5fd" stop-opacity="0.3"/><stop offset="100%" stop-color="#c4b5fd" stop-opacity="0"/></radialGradient>
+          </defs>
+          <path d="M 9 6 C 9 6 18 6 30 28 C 40 46 50 52 60 56" stroke="url(#i_sL)" stroke-width="6" stroke-linecap="round" fill="none"/>
+          <path d="M 60 2 L 60 56" stroke="url(#i_sC)" stroke-width="6" stroke-linecap="round" fill="none"/>
+          <path d="M 111 6 C 111 6 102 6 90 28 C 80 46 70 52 60 56" stroke="url(#i_sR)" stroke-width="6" stroke-linecap="round" fill="none"/>
+          <circle cx="60" cy="56" r="18" fill="url(#i_ng)"/>
+          <circle cx="60" cy="56" r="9"  fill="#0c1333" stroke="#a78bfa" stroke-width="2.5"/>
+          <circle cx="60" cy="56" r="5"  fill="#c4b5fd"/>
+          <path d="M 60 65 L 60 106" stroke="url(#i_sO)" stroke-width="6" stroke-linecap="round" fill="none"/>
+          <circle cx="9"   cy="6" r="3.5" fill="#a78bfa" opacity="0.8"/>
+          <circle cx="60"  cy="2" r="3.5" fill="#c4b5fd" opacity="0.9"/>
+          <circle cx="111" cy="6" r="3.5" fill="#67e8f9" opacity="0.8"/>
+        </svg>
+      </div>
+      <span class="tile-label">96px</span>
+    </div>
+
+    <!-- 64 -->
+    <div class="tile">
+      <div class="app-icon-wrap" style="width:64px;height:64px;background:linear-gradient(145deg,#13001f 0%,#0c1333 100%);">
+        <svg width="42" height="38" viewBox="0 0 120 108" fill="none">
+          <defs>
+            <linearGradient id="j_sL" x1="6" y1="0" x2="54" y2="100" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/></linearGradient>
+            <linearGradient id="j_sC" x1="60" y1="0" x2="60" y2="56" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#c4b5fd"/><stop offset="100%" stop-color="#818cf8" stop-opacity="0.1"/></linearGradient>
+            <linearGradient id="j_sR" x1="114" y1="0" x2="66" y2="100" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#67e8f9"/><stop offset="100%" stop-color="#0891b2" stop-opacity="0"/></linearGradient>
+            <linearGradient id="j_sO" x1="60" y1="54" x2="60" y2="108" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#6d28d9" stop-opacity="0.3"/></linearGradient>
+            <radialGradient id="j_ng" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#c4b5fd" stop-opacity="0.3"/><stop offset="100%" stop-color="#c4b5fd" stop-opacity="0"/></radialGradient>
+          </defs>
+          <path d="M 9 6 C 9 6 18 6 30 28 C 40 46 50 52 60 56" stroke="url(#j_sL)" stroke-width="7" stroke-linecap="round" fill="none"/>
+          <path d="M 60 2 L 60 56" stroke="url(#j_sC)" stroke-width="7" stroke-linecap="round" fill="none"/>
+          <path d="M 111 6 C 111 6 102 6 90 28 C 80 46 70 52 60 56" stroke="url(#j_sR)" stroke-width="7" stroke-linecap="round" fill="none"/>
+          <circle cx="60" cy="56" r="15" fill="url(#j_ng)"/>
+          <circle cx="60" cy="56" r="9"  fill="#0c1333" stroke="#a78bfa" stroke-width="2.5"/>
+          <circle cx="60" cy="56" r="5"  fill="#c4b5fd"/>
+          <path d="M 60 65 L 60 106" stroke="url(#j_sO)" stroke-width="7" stroke-linecap="round" fill="none"/>
+        </svg>
+      </div>
+      <span class="tile-label">64px</span>
+    </div>
+
+    <!-- 32 -->
+    <div class="tile">
+      <div class="app-icon-wrap" style="width:32px;height:32px;background:linear-gradient(145deg,#13001f 0%,#0c1333 100%);">
+        <svg width="20" height="18" viewBox="0 0 120 108" fill="none">
+          <path d="M 9 6 C 9 6 18 6 30 28 C 40 46 50 52 60 56" stroke="#a78bfa" stroke-width="8" stroke-linecap="round" fill="none"/>
+          <path d="M 60 2 L 60 56" stroke="#c4b5fd" stroke-width="8" stroke-linecap="round" fill="none"/>
+          <path d="M 111 6 C 111 6 102 6 90 28 C 80 46 70 52 60 56" stroke="#67e8f9" stroke-width="8" stroke-linecap="round" fill="none"/>
+          <circle cx="60" cy="56" r="10" fill="#c4b5fd"/>
+          <path d="M 60 66 L 60 106" stroke="#a78bfa" stroke-width="8" stroke-linecap="round" fill="none"/>
+        </svg>
+      </div>
+      <span class="tile-label">32px</span>
+    </div>
+
+    <!-- 16 -->
+    <div class="tile">
+      <div class="app-icon-wrap" style="width:16px;height:16px;background:linear-gradient(145deg,#13001f 0%,#0c1333 100%);">
+        <svg width="11" height="10" viewBox="0 0 120 108" fill="none">
+          <path d="M 9 6 C 9 6 18 6 30 28 C 40 46 50 52 60 56" stroke="#a78bfa" stroke-width="10" stroke-linecap="round" fill="none"/>
+          <path d="M 60 2 L 60 56" stroke="#c4b5fd" stroke-width="10" stroke-linecap="round" fill="none"/>
+          <path d="M 111 6 C 111 6 102 6 90 28 C 80 46 70 52 60 56" stroke="#67e8f9" stroke-width="10" stroke-linecap="round" fill="none"/>
+          <circle cx="60" cy="56" r="12" fill="#c4b5fd"/>
+          <path d="M 60 68 L 60 106" stroke="#a78bfa" stroke-width="10" stroke-linecap="round" fill="none"/>
+        </svg>
+      </div>
+      <span class="tile-label">16px</span>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 4 — GitHub repo banner
+═══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">GitHub Repo Banner — 1280×640</div>
+  <div style="
+    width: 640px; height: 320px;
+    background: linear-gradient(135deg, #0d0120 0%, #080d20 55%, #040d1a 100%);
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #1e1e30;
+  ">
+    <!-- Subtle grid lines -->
+    <svg style="position:absolute;inset:0;opacity:0.06;" width="640" height="320">
+      <defs>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#818cf8" stroke-width="0.5"/>
+        </pattern>
+      </defs>
+      <rect width="640" height="320" fill="url(#grid)"/>
+    </svg>
+
+    <!-- Glow blobs -->
+    <div style="position:absolute;top:-60px;left:80px;width:280px;height:280px;background:radial-gradient(circle,rgba(124,58,237,0.18) 0%,transparent 70%);border-radius:50%;"></div>
+    <div style="position:absolute;bottom:-80px;right:60px;width:240px;height:240px;background:radial-gradient(circle,rgba(6,182,212,0.12) 0%,transparent 70%);border-radius:50%;"></div>
+
+    <!-- Content -->
+    <div style="position:relative;display:flex;align-items:center;gap:36px;">
+      <!-- Mark -->
+      <svg width="96" height="87" viewBox="0 0 120 108" fill="none">
+        <defs>
+          <linearGradient id="g_sL" x1="6" y1="0" x2="54" y2="100" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#a78bfa"/>
+            <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="g_sC" x1="60" y1="0" x2="60" y2="56" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#c4b5fd"/>
+            <stop offset="100%" stop-color="#818cf8" stop-opacity="0.1"/>
+          </linearGradient>
+          <linearGradient id="g_sR" x1="114" y1="0" x2="66" y2="100" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#67e8f9"/>
+            <stop offset="100%" stop-color="#0891b2" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="g_sO" x1="60" y1="54" x2="60" y2="108" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#a78bfa"/>
+            <stop offset="100%" stop-color="#6d28d9" stop-opacity="0.3"/>
+          </linearGradient>
+          <radialGradient id="g_ng" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#c4b5fd" stop-opacity="0.4"/>
+            <stop offset="100%" stop-color="#c4b5fd" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="g_glow"><feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b"/><feComposite in="SourceGraphic" in2="b" operator="over"/></filter>
+        </defs>
+        <path d="M 9 6 C 9 6 18 6 30 28 C 40 46 50 52 60 56" stroke="url(#g_sL)" stroke-width="6" stroke-linecap="round" fill="none" filter="url(#g_glow)"/>
+        <path d="M 60 2 L 60 56" stroke="url(#g_sC)" stroke-width="6" stroke-linecap="round" fill="none" filter="url(#g_glow)"/>
+        <path d="M 111 6 C 111 6 102 6 90 28 C 80 46 70 52 60 56" stroke="url(#g_sR)" stroke-width="6" stroke-linecap="round" fill="none" filter="url(#g_glow)"/>
+        <circle cx="60" cy="56" r="22" fill="url(#g_ng)"/>
+        <circle cx="60" cy="56" r="9.5" fill="#080d20" stroke="#a78bfa" stroke-width="2.5"/>
+        <circle cx="60" cy="56" r="5.5" fill="#c4b5fd"/>
+        <path d="M 60 65.5 L 60 106" stroke="url(#g_sO)" stroke-width="6" stroke-linecap="round" fill="none"/>
+        <circle cx="9"   cy="6" r="4" fill="#a78bfa" opacity="0.8"/>
+        <circle cx="60"  cy="2" r="4" fill="#c4b5fd" opacity="0.9"/>
+        <circle cx="111" cy="6" r="4" fill="#67e8f9" opacity="0.8"/>
+      </svg>
+
+      <!-- Text block -->
+      <div>
+        <div style="font-size:52px;font-weight:900;letter-spacing:-0.04em;background:linear-gradient(105deg,#e9d5ff 0%,#a78bfa 40%,#67e8f9 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;">confluence</div>
+        <div style="font-size:13px;color:#4a4a72;letter-spacing:0.15em;text-transform:uppercase;margin-top:8px;">Multi-Platform Chat Aggregator</div>
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          <span style="font-size:10px;padding:3px 10px;border:1px solid #3d2a6b;border-radius:99px;color:#a78bfa;letter-spacing:0.06em;">Twitch</span>
+          <span style="font-size:10px;padding:3px 10px;border:1px solid #1a3a5c;border-radius:99px;color:#67e8f9;letter-spacing:0.06em;">YouTube</span>
+          <span style="font-size:10px;padding:3px 10px;border:1px solid #1a3a1a;border-radius:99px;color:#4ade80;letter-spacing:0.06em;">Kick</span>
+          <span style="font-size:10px;padding:3px 10px;border:1px solid #3a1a1a;border-radius:99px;color:#f87171;letter-spacing:0.06em;">TikTok</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p style="font-size:10px;color:#333;margin-top:8px;">Shown at 50% — actual banner would be 1280×640px</p>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     SECTION 5 — Colour palette
+═══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Brand Colours</div>
+  <div class="row">
+    <div class="tile">
+      <div style="width:64px;height:64px;border-radius:12px;background:#c4b5fd;"></div>
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:#bbb;">Lavender</div>
+        <div style="font-size:10px;color:#555;">#c4b5fd</div>
+      </div>
+    </div>
+    <div class="tile">
+      <div style="width:64px;height:64px;border-radius:12px;background:#818cf8;"></div>
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:#bbb;">Indigo</div>
+        <div style="font-size:10px;color:#555;">#818cf8</div>
+      </div>
+    </div>
+    <div class="tile">
+      <div style="width:64px;height:64px;border-radius:12px;background:#7c3aed;"></div>
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:#bbb;">Violet</div>
+        <div style="font-size:10px;color:#555;">#7c3aed</div>
+      </div>
+    </div>
+    <div class="tile">
+      <div style="width:64px;height:64px;border-radius:12px;background:#67e8f9;"></div>
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:#bbb;">Cyan</div>
+        <div style="font-size:10px;color:#555;">#67e8f9</div>
+      </div>
+    </div>
+    <div class="tile">
+      <div style="width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,#13001f,#0c1333);border:1px solid #2a2a40;"></div>
+      <div style="text-align:center;">
+        <div style="font-size:11px;color:#bbb;">Background</div>
+        <div style="font-size:10px;color:#555;">#0d0120 → #0c1333</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

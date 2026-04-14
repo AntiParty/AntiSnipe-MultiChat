@@ -1,4 +1,4 @@
-import { RENDERER_CHANNELS } from '@shared/types/ipc'
+import { RENDERER_CHANNELS, MAIN_CHANNELS } from '@shared/types/ipc'
 import { useStore } from '../index'
 
 /**
@@ -13,6 +13,9 @@ export function initIpcSync(): () => void {
   bridge.invoke('settings:get').then(settings => {
     useStore.getState().hydrateSettings(settings)
     useStore.getState().setChannels(settings.channels)
+    if (settings.showViewerList) {
+      useStore.getState().openViewerList()
+    }
   })
 
   // Load initial auth state
@@ -33,6 +36,10 @@ export function initIpcSync(): () => void {
           if (msgs.length > 0) {
             useStore.getState().prependMessages(state.channelId, msgs)
           }
+        } catch { /* ignore */ }
+        try {
+          const vl = await bridge.invoke(MAIN_CHANNELS.GET_VIEWER_LIST, { channelId: state.channelId })
+          if (vl) useStore.getState().setViewerList(vl)
         } catch { /* ignore */ }
       }
     }
@@ -143,6 +150,13 @@ export function initIpcSync(): () => void {
   unsubscribers.push(
     bridge.on(RENDERER_CHANNELS.RECENT_MESSAGES, ({ channelId, messages }) => {
       useStore.getState().prependMessages(channelId, messages)
+    })
+  )
+
+  // Viewer list updates pushed from main process (Twitch chatter poller)
+  unsubscribers.push(
+    bridge.on(RENDERER_CHANNELS.VIEWER_LIST_UPDATE, payload => {
+      useStore.getState().setViewerList(payload)
     })
   )
 

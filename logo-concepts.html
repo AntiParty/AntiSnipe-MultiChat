@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Confluence — Logo Concepts</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f0f17;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      padding: 48px 32px;
+    }
+    h1 {
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #666;
+      margin-bottom: 40px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+    }
+    .card {
+      background: #16161f;
+      border: 1px solid #2a2a38;
+      border-radius: 16px;
+      padding: 40px 24px 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    .label {
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #555;
+    }
+    .name {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .desc {
+      font-size: 11px;
+      color: #555;
+      text-align: center;
+      line-height: 1.6;
+      max-width: 180px;
+    }
+
+    /* ── Concept A: Three streams merging ── */
+    .logo-a svg { overflow: visible; }
+
+    /* ── Concept B: Monogram C with flow ── */
+
+    /* ── Concept C: Abstract ripple mark ── */
+
+    /* ── Concept D: Wordmark only ── */
+
+    /* ── Concept E: Icon + stacked wordmark ── */
+
+    /* ── Concept F: Minimal slash mark ── */
+  </style>
+</head>
+<body>
+
+  <h1>Confluence — Logo Concepts</h1>
+
+  <div class="grid">
+
+    <!-- A: Three streams converging into one -->
+    <div class="card">
+      <span class="label">Concept A</span>
+      <svg width="80" height="72" viewBox="0 0 80 72" fill="none">
+        <!-- left stream -->
+        <path d="M4 8 C 4 8, 24 8, 36 36" stroke="#7c5cfc" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.9"/>
+        <!-- center stream -->
+        <path d="M40 4 L 40 36" stroke="#a78bfa" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+        <!-- right stream -->
+        <path d="M76 8 C 76 8, 56 8, 44 36" stroke="#7c5cfc" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.9"/>
+        <!-- merged output -->
+        <path d="M40 36 L 40 68" stroke="url(#ga)" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+        <!-- merge dot -->
+        <circle cx="40" cy="36" r="5" fill="#a78bfa"/>
+        <defs>
+          <linearGradient id="ga" x1="40" y1="36" x2="40" y2="68" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#a78bfa"/>
+            <stop offset="100%" stop-color="#6d28d9" stop-opacity="0.4"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <span class="name" style="color:#a78bfa">confluence</span>
+      <span class="desc">Three streams merging into one — represents multi-platform chat unification</span>
+    </div>
+
+    <!-- B: Bold C monogram with internal flow lines -->
+    <div class="card">
+      <span class="label">Concept B</span>
+      <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
+        <circle cx="36" cy="36" r="32" fill="#1a1a2e" stroke="#312e6b" stroke-width="1.5"/>
+        <!-- C shape -->
+        <path d="M52 20 A 22 22 0 1 0 52 52" stroke="#818cf8" stroke-width="5" stroke-linecap="round" fill="none"/>
+        <!-- flow lines inside C -->
+        <path d="M20 30 Q 30 30 34 36 Q 30 42 20 42" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.5"/>
+        <!-- opening dot -->
+        <circle cx="52" cy="20" r="4" fill="#818cf8"/>
+        <circle cx="52" cy="52" r="4" fill="#818cf8"/>
+      </svg>
+      <span class="name" style="color:#818cf8">Confluence</span>
+      <span class="desc">Bold monogram C — clean, professional, scalable to any size</span>
+    </div>
+
+    <!-- C: Water ripple / wave mark -->
+    <div class="card">
+      <span class="label">Concept C</span>
+      <svg width="80" height="60" viewBox="0 0 80 60" fill="none">
+        <!-- stacked wave arcs, offset = converging effect -->
+        <path d="M6 44 Q 20 20 40 30 Q 60 40 74 16" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.35"/>
+        <path d="M6 36 Q 20 12 40 22 Q 60 32 74 8"  stroke="#38bdf8" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.6"/>
+        <path d="M6 28 Q 20 4  40 14 Q 60 24 74 0"  stroke="#7dd3fc" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.9"/>
+        <!-- anchor line -->
+        <line x1="6" y1="52" x2="74" y2="52" stroke="#1e3a5f" stroke-width="1.5"/>
+      </svg>
+      <span class="name" style="color:#38bdf8; font-weight:300; letter-spacing:0.08em">CONFLUENCE</span>
+      <span class="desc">Wave mark — flowing streams, modern and clean, good for light/dark</span>
+    </div>
+
+    <!-- D: Wordmark with gradient + double underline accent -->
+    <div class="card">
+      <span class="label">Concept D</span>
+      <svg width="220" height="56" viewBox="0 0 220 56" fill="none">
+        <defs>
+          <linearGradient id="gd" x1="0" y1="0" x2="220" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stop-color="#a78bfa"/>
+            <stop offset="50%"  stop-color="#818cf8"/>
+            <stop offset="100%" stop-color="#38bdf8"/>
+          </linearGradient>
+        </defs>
+        <text x="0" y="38" font-family="'Segoe UI',system-ui,sans-serif" font-size="36" font-weight="800"
+              letter-spacing="-0.5" fill="url(#gd)">confluence</text>
+        <!-- double underline accent — two offset lines, like streams -->
+        <line x1="0"  y1="46" x2="140" y2="46" stroke="#7c5cfc" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+        <line x1="40" y1="50" x2="220" y2="50" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+      </svg>
+      <span class="desc">Pure gradient wordmark — offset underlines suggest converging streams</span>
+    </div>
+
+    <!-- E: Diamond node icon + wordmark -->
+    <div class="card">
+      <span class="label">Concept E</span>
+      <div style="display:flex;align-items:center;gap:12px">
+        <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+          <!-- rotated square (diamond) -->
+          <rect x="8" y="8" width="28" height="28" rx="5" transform="rotate(45 22 22)"
+                fill="#1a1a2e" stroke="#7c5cfc" stroke-width="2"/>
+          <!-- 3 inward arrows / lines suggesting convergence -->
+          <line x1="22" y1="6"  x2="22" y2="18" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"/>
+          <line x1="6"  y1="22" x2="18" y2="22" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"/>
+          <line x1="38" y1="22" x2="26" y2="22" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="22" cy="22" r="4" fill="#a78bfa"/>
+        </svg>
+        <div>
+          <div style="font-size:22px;font-weight:800;color:#e2e8f0;letter-spacing:-0.02em">Confluence</div>
+          <div style="font-size:9px;letter-spacing:0.18em;color:#555;text-transform:uppercase;margin-top:1px">Multi-Platform Chat</div>
+        </div>
+      </div>
+      <span class="desc">Diamond node mark — chat messages flowing into a single point. Works well as an icon at small sizes</span>
+    </div>
+
+    <!-- F: Minimal slash/stream mark — two offset thick strokes -->
+    <div class="card">
+      <span class="label">Concept F</span>
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+        <defs>
+          <linearGradient id="gf1" x1="10" y1="4" x2="40" y2="60" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stop-color="#a78bfa"/>
+            <stop offset="100%" stop-color="#7c5cfc" stop-opacity="0.2"/>
+          </linearGradient>
+          <linearGradient id="gf2" x1="24" y1="4" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stop-color="#38bdf8"/>
+            <stop offset="100%" stop-color="#0ea5e9" stop-opacity="0.2"/>
+          </linearGradient>
+        </defs>
+        <!-- two streams (thick diagonal strokes) converging at bottom -->
+        <path d="M10 4 Q 16 32 32 60" stroke="url(#gf1)" stroke-width="9" stroke-linecap="round" fill="none"/>
+        <path d="M54 4 Q 48 32 32 60" stroke="url(#gf2)" stroke-width="9" stroke-linecap="round" fill="none"/>
+        <!-- convergence dot -->
+        <circle cx="32" cy="60" r="5" fill="#c4b5fd"/>
+      </svg>
+      <span class="name" style="font-weight:300;letter-spacing:0.15em;font-size:15px;color:#c4b5fd">CONFLUENCE</span>
+      <span class="desc">Two fading streams meeting at a point — minimalist, highly scalable icon</span>
+    </div>
+
+  </div>
+
+</body>
+</html>

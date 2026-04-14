@@ -65,6 +65,8 @@ export default function SettingsGeneral() {
   const { settings, save } = useSettings()
   const updateStatus = useStore(s => s.updateStatus)
   const setUpdateStatus = useStore(s => s.setUpdateStatus)
+  const openViewerList = useStore(s => s.openViewerList)
+  const closeViewerList = useStore(s => s.closeViewerList)
   const [justChecked, setJustChecked] = useState(false)
 
   async function handleCheckForUpdates() {
@@ -257,6 +259,16 @@ export default function SettingsGeneral() {
             <Toggle
               checked={settings.showViewerCount}
               onCheckedChange={v => save({ showViewerCount: v })}
+            />
+          </OptionRow>
+          <OptionRow label="Show viewer list" description="Collapsible panel listing chatters for the active channel">
+            <Toggle
+              checked={settings.showViewerList}
+              onCheckedChange={v => {
+                save({ showViewerList: v })
+                if (v) openViewerList()
+                else closeViewerList()
+              }}
             />
           </OptionRow>
         </div>

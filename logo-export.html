@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Confluence — Asset Export</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a12; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; padding: 48px; }
+    h1 { font-size: 22px; font-weight: 700; color: #c4b5fd; margin-bottom: 6px; }
+    .sub { font-size: 12px; color: #555; margin-bottom: 48px; }
+    .section { margin-bottom: 48px; }
+    .section h2 { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #444;
+                  border-bottom: 1px solid #1c1c28; padding-bottom: 10px; margin-bottom: 24px; }
+    .grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+    .card { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .card canvas { border-radius: 8px; display: block; }
+    .card .lbl { font-size: 10px; color: #555; letter-spacing: 0.08em; }
+    .btn {
+      display: inline-block; padding: 5px 12px; font-size: 10px; font-weight: 600;
+      background: #1e1e30; border: 1px solid #333; border-radius: 4px;
+      color: #a78bfa; cursor: pointer; text-decoration: none; letter-spacing: 0.05em;
+      transition: background 0.1s;
+    }
+    .btn:hover { background: #2a2a42; }
+    #status { position: fixed; bottom: 20px; right: 24px; background: #1e1e30;
+              border: 1px solid #333; border-radius: 6px; padding: 10px 16px;
+              font-size: 12px; color: #67e8f9; display: none; }
+    .note { font-size: 11px; color: #444; margin-top: 6px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+
+<h1>Confluence — Asset Export</h1>
+<p class="sub">Open in Chrome · All assets render via Canvas · Click Download on each</p>
+
+<div id="root"></div>
+<div id="status">✓ Downloaded</div>
+
+<script>
+// ─────────────────────────────────────────────
+// SVG MARK — exact clone of logo-confluence.html "App Icon — Rounded Square"
+// Uses nested viewBox="0 0 120 108" so all gradient coords stay in original space
+// ─────────────────────────────────────────────
+function markSVG(size, transparent) {
+  const uid = 'u' + Math.random().toString(36).slice(2)
+  const rx  = size * 0.225
+  // Mark proportions from source: SVG is 64×58 inside a 96×96 container
+  const markW = Math.round(size * 64 / 96)
+  const markH = Math.round(size * 58 / 96)
+  const mx = (size - markW) / 2
+  const my = (size - markH) / 2
+
+  const bgBlock = transparent ? '' : `
+  <defs>
+    <linearGradient id="${uid}_bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#13001f"/>
+      <stop offset="100%" stop-color="#0c1333"/>
+    </linearGradient>
+    <clipPath id="${uid}_clip"><rect width="${size}" height="${size}" rx="${rx}"/></clipPath>
+  </defs>
+  <rect width="${size}" height="${size}" rx="${rx}" fill="url(#${uid}_bg)"/>`
+
+  const clipAttr = transparent ? '' : `clip-path="url(#${uid}_clip)"`
+
+  // Node fill = gradient end colour so the ring cutout blends into bg
+  const nodeFill = transparent ? '#0a0a12' : '#0c1333'
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
+  ${bgBlock}
+  <g ${clipAttr}>
+    <svg x="${mx}" y="${my}" width="${markW}" height="${markH}" viewBox="0 0 120 108" overflow="visible">
+      <defs>
+        <linearGradient id="${uid}_sL" x1="6" y1="0" x2="54" y2="100" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="${uid}_sC" x1="60" y1="0" x2="60" y2="56" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#c4b5fd"/><stop offset="100%" stop-color="#818cf8" stop-opacity="0.1"/>
+        </linearGradient>
+        <linearGradient id="${uid}_sR" x1="114" y1="0" x2="66" y2="100" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#67e8f9"/><stop offset="100%" stop-color="#0891b2" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="${uid}_sO" x1="60" y1="54" x2="60" y2="108" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#6d28d9" stop-opacity="0.3"/>
+        </linearGradient>
+        <radialGradient id="${uid}_ng" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#c4b5fd" stop-opacity="0.3"/><stop offset="100%" stop-color="#c4b5fd" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <path d="M 9 6 C 9 6 18 6 30 28 C 40 46 50 52 60 56"    stroke="url(#${uid}_sL)" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <path d="M 60 2 L 60 56"                                  stroke="url(#${uid}_sC)" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <path d="M 111 6 C 111 6 102 6 90 28 C 80 46 70 52 60 56" stroke="url(#${uid}_sR)" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <circle cx="60" cy="56" r="18" fill="url(#${uid}_ng)"/>
+      <circle cx="60" cy="56" r="9"  fill="${nodeFill}" stroke="#a78bfa" stroke-width="2.5"/>
+      <circle cx="60" cy="56" r="5"  fill="#c4b5fd"/>
+      <path d="M 60 65 L 60 106"                                 stroke="url(#${uid}_sO)" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <circle cx="9"   cy="6" r="3.5" fill="#a78bfa" opacity="0.8"/>
+      <circle cx="60"  cy="2" r="3.5" fill="#c4b5fd" opacity="0.9"/>
+      <circle cx="111" cy="6" r="3.5" fill="#67e8f9" opacity="0.8"/>
+    </svg>
+  </g>
+</svg>`
+}
+
+// ─────────────────────────────────────────────
+// GitHub Banner SVG (1280×640)
+// ─────────────────────────────────────────────
+function bannerSVG() {
+  const W = 1280, H = 640
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="${W}" y2="${H}" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0d0d1a"/>
+      <stop offset="100%" stop-color="#0a0a12"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="35%" cy="45%" r="40%">
+      <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="70%" cy="55%" r="35%">
+      <stop offset="0%" stop-color="#0891b2" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#0891b2" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Mark gradients -->
+    <linearGradient id="bsL" x1="0" y1="0" x2="200" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="bsC" x1="216" y1="0" x2="216" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c4b5fd"/><stop offset="100%" stop-color="#818cf8" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="bsR" x1="432" y1="0" x2="232" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#67e8f9"/><stop offset="100%" stop-color="#0891b2" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="bsO" x1="216" y1="194" x2="216" y2="388" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#6d28d9" stop-opacity="0.3"/>
+    </linearGradient>
+    <radialGradient id="bng" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#c4b5fd" stop-opacity="0.35"/><stop offset="100%" stop-color="#c4b5fd" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="bglow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="b"/>
+      <feComposite in="SourceGraphic" in2="b" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="${W}" height="${H}" fill="url(#bg)"/>
+  <rect width="${W}" height="${H}" fill="url(#glow1)"/>
+  <rect width="${W}" height="${H}" fill="url(#glow2)"/>
+
+  <!-- Subtle grid -->
+  <g stroke="#ffffff" stroke-opacity="0.025" stroke-width="1">
+    ${Array.from({length: Math.ceil(W/64)+1}, (_,i)=>`<line x1="${i*64}" y1="0" x2="${i*64}" y2="${H}"/>`).join('')}
+    ${Array.from({length: Math.ceil(H/64)+1}, (_,i)=>`<line x1="0" y1="${i*64}" x2="${W}" y2="${i*64}"/>`).join('')}
+  </g>
+
+  <!-- Mark — centered left block -->
+  <g transform="translate(${W*0.18 - 216}, ${H*0.5 - 194})">
+    <path d="M 27 20 C 27 20 54 20 90 101 C 121 167 153 186 216 194"
+          stroke="url(#bsL)" stroke-width="20" stroke-linecap="round" fill="none" filter="url(#bglow)"/>
+    <path d="M 216 7 L 216 194"
+          stroke="url(#bsC)" stroke-width="20" stroke-linecap="round" fill="none" filter="url(#bglow)"/>
+    <path d="M 405 20 C 405 20 378 20 342 101 C 311 167 279 186 216 194"
+          stroke="url(#bsR)" stroke-width="20" stroke-linecap="round" fill="none" filter="url(#bglow)"/>
+    <circle cx="216" cy="194" r="60" fill="url(#bng)"/>
+    <circle cx="216" cy="194" r="27" fill="#0d0d1a" stroke="#a78bfa" stroke-width="6"/>
+    <circle cx="216" cy="194" r="15" fill="#c4b5fd"/>
+    <path d="M 216 221 L 216 381"
+          stroke="url(#bsO)" stroke-width="20" stroke-linecap="round" fill="none"/>
+    <circle cx="27"  cy="20"  r="9" fill="#a78bfa" opacity="0.7"/>
+    <circle cx="216" cy="7"   r="9" fill="#c4b5fd" opacity="0.7"/>
+    <circle cx="405" cy="20"  r="9" fill="#67e8f9" opacity="0.7"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="${W*0.46}" y="${H*0.44}"
+        font-family="'Segoe UI',system-ui,sans-serif" font-size="112" font-weight="800"
+        letter-spacing="-3" fill="url(#bsC)">confluence</text>
+  <text x="${W*0.464}" y="${H*0.44 + 52}"
+        font-family="'Segoe UI',system-ui,sans-serif" font-size="22" font-weight="400"
+        letter-spacing="10" fill="#4a4a6a">MULTI-PLATFORM CHAT</text>
+
+  <!-- Platform pills -->
+  <g transform="translate(${W*0.464}, ${H*0.44 + 96})">
+    <!-- Twitch -->
+    <rect x="0" y="0" width="110" height="28" rx="14" fill="#9147ff" fill-opacity="0.15" stroke="#9147ff" stroke-opacity="0.4" stroke-width="1"/>
+    <text x="55" y="18" font-family="'Segoe UI',system-ui,sans-serif" font-size="12" font-weight="600" fill="#9147ff" text-anchor="middle">Twitch</text>
+    <!-- YouTube -->
+    <rect x="120" y="0" width="122" height="28" rx="14" fill="#cc0000" fill-opacity="0.15" stroke="#cc0000" stroke-opacity="0.4" stroke-width="1"/>
+    <text x="181" y="18" font-family="'Segoe UI',system-ui,sans-serif" font-size="12" font-weight="600" fill="#cc4444" text-anchor="middle">YouTube</text>
+    <!-- Kick -->
+    <rect x="252" y="0" width="90" height="28" rx="14" fill="#53fc18" fill-opacity="0.1" stroke="#53fc18" stroke-opacity="0.4" stroke-width="1"/>
+    <text x="297" y="18" font-family="'Segoe UI',system-ui,sans-serif" font-size="12" font-weight="600" fill="#53fc18" text-anchor="middle">Kick</text>
+    <!-- TikTok -->
+    <rect x="352" y="0" width="100" height="28" rx="14" fill="#ff0050" fill-opacity="0.12" stroke="#ff0050" stroke-opacity="0.4" stroke-width="1"/>
+    <text x="402" y="18" font-family="'Segoe UI',system-ui,sans-serif" font-size="12" font-weight="600" fill="#ff0050" text-anchor="middle">TikTok</text>
+  </g>
+</svg>`
+}
+
+// ─────────────────────────────────────────────
+// Render SVG → Canvas → PNG dataURL
+// ─────────────────────────────────────────────
+function svgToCanvas(svgStr, w, h) {
+  return new Promise(resolve => {
+    const canvas = document.createElement('canvas')
+    canvas.width = w; canvas.height = h
+    const ctx = canvas.getContext('2d')
+    const img = new Image()
+    const blob = new Blob([svgStr], { type: 'image/svg+xml' })
+    const url = URL.createObjectURL(blob)
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, w, h)
+      URL.revokeObjectURL(url)
+      resolve(canvas)
+    }
+    img.src = url
+  })
+}
+
+function download(dataUrl, filename) {
+  const a = document.createElement('a')
+  a.href = dataUrl
+  a.download = filename
+  a.click()
+  const s = document.getElementById('status')
+  s.textContent = `✓ Downloaded ${filename}`
+  s.style.display = 'block'
+  setTimeout(() => s.style.display = 'none', 2000)
+}
+
+function makeBtn(label, onclick) {
+  const a = document.createElement('a')
+  a.className = 'btn'
+  a.textContent = label
+  a.href = '#'
+  a.onclick = e => { e.preventDefault(); onclick() }
+  return a
+}
+
+function makeCard(previewCanvas, label, filename, sourceW, sourceH) {
+  const card = document.createElement('div')
+  card.className = 'card'
+  // Scale preview for display (max 128px)
+  const disp = Math.min(128, sourceW)
+  const scale = disp / sourceW
+  const dc = document.createElement('canvas')
+  dc.width = disp; dc.height = Math.round(sourceH * scale)
+  dc.getContext('2d').drawImage(previewCanvas, 0, 0, disp, Math.round(sourceH * scale))
+  card.appendChild(dc)
+  const lbl = document.createElement('div')
+  lbl.className = 'lbl'
+  lbl.textContent = label
+  card.appendChild(lbl)
+  const btn = makeBtn('Download', () => download(previewCanvas.toDataURL('image/png'), filename))
+  card.appendChild(btn)
+  return card
+}
+
+// ─────────────────────────────────────────────
+// Build all assets
+// ─────────────────────────────────────────────
+async function build() {
+  const root = document.getElementById('root')
+
+  // ── App Icons (icon on dark bg rounded-square) ──────────────
+  const iconSection = document.createElement('div')
+  iconSection.className = 'section'
+  iconSection.innerHTML = '<h2>App Icon — PNG (place in build/ for electron-builder)</h2>'
+  const iconGrid = document.createElement('div')
+  iconGrid.className = 'grid'
+  iconSection.appendChild(iconGrid)
+
+  const iconSizes = [1024, 512, 256, 128, 64, 48, 32, 16]
+  for (const sz of iconSizes) {
+    const svg = markSVG(sz, false)
+    const canvas = await svgToCanvas(svg, sz, sz)
+    const card = makeCard(canvas, `${sz}×${sz}`, `confluence-icon-${sz}.png`, sz, sz)
+    iconGrid.appendChild(card)
+  }
+
+  const note1 = document.createElement('p')
+  note1.className = 'note'
+  note1.innerHTML = `→ Rename <code>confluence-icon-256.png</code> to <code>icon.png</code> and put in <code>build/</code> for Linux.<br>
+→ Use <a href="https://www.npmjs.com/package/png-to-ico" style="color:#818cf8">png-to-ico</a> or <a href="https://icoconvert.com" style="color:#818cf8">icoconvert.com</a> with the 16/32/48/256 PNGs to create <code>build/icon.ico</code> (Windows).<br>
+→ Use <a href="https://cloudconvert.com/png-to-icns" style="color:#818cf8">cloudconvert.com</a> with the 1024 PNG to create <code>build/icon.icns</code> (macOS).`
+  iconSection.appendChild(note1)
+  root.appendChild(iconSection)
+
+  // ── App Icon transparent (no bg) ──────────────
+  const transpSection = document.createElement('div')
+  transpSection.className = 'section'
+  transpSection.innerHTML = '<h2>App Icon — Transparent PNG (mark only, no background)</h2>'
+  const transpGrid = document.createElement('div')
+  transpGrid.className = 'grid'
+  transpSection.appendChild(transpGrid)
+
+  for (const sz of [1024, 512, 256]) {
+    const svg = markSVG(sz, true)
+    const canvas = await svgToCanvas(svg, sz, sz)
+    const card = makeCard(canvas, `${sz}×${sz} transparent`, `confluence-mark-${sz}-transparent.png`, sz, sz)
+    transpGrid.appendChild(card)
+  }
+  root.appendChild(transpSection)
+
+  // ── GitHub Social Preview (1280×640) ──────────────
+  const ghSection = document.createElement('div')
+  ghSection.className = 'section'
+  ghSection.innerHTML = '<h2>GitHub Social Preview — 1280×640 (Settings → Social preview on repo page)</h2>'
+  const ghGrid = document.createElement('div')
+  ghGrid.className = 'grid'
+  ghSection.appendChild(ghGrid)
+
+  const bannerCanvas = await svgToCanvas(bannerSVG(), 1280, 640)
+  const bannerCard = makeCard(bannerCanvas, '1280×640', 'confluence-github-banner.png', 1280, 640)
+  ghGrid.appendChild(bannerCard)
+
+  // Also a half-size preview
+  const bannerHalf = await svgToCanvas(bannerSVG(), 640, 320)
+  const bannerHalfCard = makeCard(bannerHalf, '640×320 (2× preview)', 'confluence-github-banner-640.png', 640, 320)
+  ghGrid.appendChild(bannerHalfCard)
+
+  root.appendChild(ghSection)
+
+  // ── Standalone SVG download ──────────────
+  const svgSection = document.createElement('div')
+  svgSection.className = 'section'
+  svgSection.innerHTML = '<h2>Standalone SVG Mark (scalable, use for README / docs)</h2>'
+  const svgGrid = document.createElement('div')
+  svgGrid.className = 'grid'
+
+  // Preview
+  const svgPrev = await svgToCanvas(markSVG(256, false), 256, 256)
+  const svgCard = document.createElement('div')
+  svgCard.className = 'card'
+  svgCard.appendChild(svgPrev)
+  const svgLbl = document.createElement('div')
+  svgLbl.className = 'lbl'
+  svgLbl.textContent = 'SVG Mark (dark bg)'
+  svgCard.appendChild(svgLbl)
+  const svgBtn = makeBtn('Download SVG', () => {
+    const blob = new Blob([markSVG(512, false)], { type: 'image/svg+xml' })
+    download(URL.createObjectURL(blob), 'confluence-mark.svg')
+  })
+  svgCard.appendChild(svgBtn)
+  svgGrid.appendChild(svgCard)
+
+  // Transparent SVG
+  const svgPrevT = await svgToCanvas(markSVG(256, true), 256, 256)
+  const svgCardT = document.createElement('div')
+  svgCardT.className = 'card'
+  svgCardT.appendChild(svgPrevT)
+  const svgLblT = document.createElement('div')
+  svgLblT.className = 'lbl'
+  svgLblT.textContent = 'SVG Mark (transparent)'
+  svgCardT.appendChild(svgLblT)
+  const svgBtnT = makeBtn('Download SVG', () => {
+    const blob = new Blob([markSVG(512, true)], { type: 'image/svg+xml' })
+    download(URL.createObjectURL(blob), 'confluence-mark-transparent.svg')
+  })
+  svgCardT.appendChild(svgBtnT)
+  svgGrid.appendChild(svgCardT)
+
+  svgSection.appendChild(svgGrid)
+  root.appendChild(svgSection)
+
+  // ── Download ALL button ──────────────
+  const allSection = document.createElement('div')
+  allSection.className = 'section'
+  allSection.innerHTML = '<h2>Bulk Export</h2>'
+  const allBtn = document.createElement('a')
+  allBtn.className = 'btn'
+  allBtn.style.fontSize = '13px'
+  allBtn.style.padding = '10px 24px'
+  allBtn.style.color = '#c4b5fd'
+  allBtn.textContent = '⬇ Download All PNGs'
+  allBtn.href = '#'
+  allBtn.onclick = async e => {
+    e.preventDefault()
+    allBtn.textContent = 'Generating…'
+    const allSizes = [1024, 512, 256, 128, 64, 48, 32, 16]
+    for (const sz of allSizes) {
+      const c = await svgToCanvas(markSVG(sz, false), sz, sz)
+      download(c.toDataURL('image/png'), `confluence-icon-${sz}.png`)
+      await new Promise(r => setTimeout(r, 120))
+    }
+    for (const sz of [1024, 512, 256]) {
+      const c = await svgToCanvas(markSVG(sz, true), sz, sz)
+      download(c.toDataURL('image/png'), `confluence-mark-${sz}-transparent.png`)
+      await new Promise(r => setTimeout(r, 120))
+    }
+    const bc = await svgToCanvas(bannerSVG(), 1280, 640)
+    download(bc.toDataURL('image/png'), 'confluence-github-banner.png')
+    allBtn.textContent = '✓ All Downloaded'
+    setTimeout(() => { allBtn.textContent = '⬇ Download All PNGs' }, 3000)
+  }
+  allSection.appendChild(allBtn)
+
+  const note2 = document.createElement('p')
+  note2.className = 'note'
+  note2.style.marginTop = '20px'
+  note2.innerHTML = `<strong style="color:#c4b5fd">Quick setup for electron-builder:</strong><br>
+1. Download <code>confluence-icon-1024.png</code> → convert to <code>build/icon.icns</code> (macOS)<br>
+2. Download 16/32/48/256 PNGs → merge into <code>build/icon.ico</code> (Windows)<br>
+3. Copy <code>confluence-icon-512.png</code> → rename to <code>build/icon.png</code> (Linux)<br>
+4. Upload <code>confluence-github-banner.png</code> to repo Settings → Social preview`
+  allSection.appendChild(note2)
+  root.appendChild(allSection)
+
+  console.log('All assets rendered.')
+}
+
+build()
+</script>
+<div id="status"></div>
+</body>
+</html>

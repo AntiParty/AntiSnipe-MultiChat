@@ -4,6 +4,7 @@ import type { AppSettings } from './settings'
 import type { EmoteData } from './emote'
 import type { Platform } from './message'
 import type { PluginRecord } from './plugin'
+import type { ViewerListPayload } from './viewer'
 
 // ─── Renderer → Main (invoke/handle) ───────────────────────────────────────
 
@@ -30,6 +31,7 @@ export const MAIN_CHANNELS = {
   RELOAD_PLUGINS: 'plugins:reload',
   TOGGLE_PLUGIN: 'plugins:toggle',
   GET_VIEWER_COUNTS: 'streams:viewerCounts',
+  GET_VIEWER_LIST: 'viewers:getList',
   GET_RECENT_MESSAGES: 'chat:getRecentMessages',
   GET_USER_CARD: 'twitch:getUserCard',
   OPEN_USER_CARD_WINDOW: 'usercard:openWindow',
@@ -62,6 +64,7 @@ export const RENDERER_CHANNELS = {
   SELF_MOD_STATUS: 'mod:selfStatus',
   PLUGINS_CHANGED: 'plugins:changed',
   RECENT_MESSAGES: 'chat:recentMessages',
+  VIEWER_LIST_UPDATE: 'viewers:update',
 } as const
 
 export type RendererChannel = (typeof RENDERER_CHANNELS)[keyof typeof RENDERER_CHANNELS]
@@ -147,6 +150,10 @@ export interface TogglePluginPayload {
   enabled: boolean
 }
 
+export interface GetViewerListPayload {
+  channelId: string
+}
+
 export interface UserCardPayload {
   userId: string
   channelId: string
@@ -214,6 +221,7 @@ export interface ChatBridgeInvokeMap {
   [MAIN_CHANNELS.RELOAD_PLUGINS]: [undefined, PluginRecord[]]
   [MAIN_CHANNELS.TOGGLE_PLUGIN]: [TogglePluginPayload, PluginRecord[]]
   [MAIN_CHANNELS.GET_VIEWER_COUNTS]: [undefined, Record<string, number>]
+  [MAIN_CHANNELS.GET_VIEWER_LIST]: [GetViewerListPayload, ViewerListPayload | null]
   [MAIN_CHANNELS.GET_RECENT_MESSAGES]: [{ channelId: string }, NormalizedMessage[]]
   [MAIN_CHANNELS.GET_USER_CARD]: [UserCardPayload, UserCardData | null]
   [MAIN_CHANNELS.OPEN_USER_CARD_WINDOW]: [UserCardPayload, void]
@@ -242,6 +250,7 @@ export interface ChatBridgeEventMap {
   [RENDERER_CHANNELS.SELF_MOD_STATUS]: SelfModStatusPayload
   [RENDERER_CHANNELS.PLUGINS_CHANGED]: PluginRecord[]
   [RENDERER_CHANNELS.RECENT_MESSAGES]: { channelId: string; messages: NormalizedMessage[] }
+  [RENDERER_CHANNELS.VIEWER_LIST_UPDATE]: ViewerListPayload
 }
 
 export interface ChatBridge {

@@ -1,6 +1,7 @@
 import log from 'electron-log'
 import { net } from 'electron'
 import { TwitchService } from './twitch/TwitchService'
+import { TwitchChatterPoller } from './twitch/TwitchChatterPoller'
 import { youtubeService } from './youtube/YouTubeService'
 import { KickService } from './kick/KickService'
 import { TikTokService } from './tiktok/TikTokService'
@@ -17,6 +18,7 @@ import { pluginManager } from './PluginManager'
 import type { ConnectChannelPayload, ConnectionState } from '../../shared/types/channel'
 import type { NormalizedMessage, DeleteMessageEvent } from '../../shared/types/message'
 import type { ModActionPayload, ModActionType, UserCardPayload, UserCardData } from '../../shared/types/ipc'
+import type { ViewerListPayload } from '../../shared/types/viewer'
 
 // Twitch removed these commands from IRC in Feb 2023 — must use Helix API instead
 const REMOVED_IRC_COMMANDS: Record<string, ModActionType | 'unban'> = {
@@ -32,11 +34,17 @@ class PlatformManager {
   private twitchService: TwitchService
   private kickService: KickService
   private tiktokService: TikTokService
+  private chatterPoller: TwitchChatterPoller
 
   constructor() {
     this.tiktokService = new TikTokService(
       msg => this.handleMessage(msg),
       (channelId, status, error) => this.setConnectionState(channelId, status, error)
+    )
+
+    this.chatterPoller = new TwitchChatterPoller(
+      (payload: ViewerListPayload) => broadcaster.send(RENDERER_CHANNELS.VIEWER_LIST_UPDATE, payload),
+      () => this.twitchService
     )
 
     this.twitchService = new TwitchService(
@@ -46,9 +54,18 @@ class PlatformManager {
       (channelId, roomId) => {
         // ROOMSTATE gives us the broadcaster's numeric user ID for free — use it for emotes
         emoteCacheManager.fetchForChannel({ channelId, twitchUserId: roomId }).catch(log.error)
+        // Now that we have a broadcasterId, start polling if user is a mod/broadcaster
+        if (this.twitchService.isSelfMod(channelId)) {
+          this.chatterPoller.startPolling(channelId)
+        }
       },
       (channelId, isMod) => {
         broadcaster.send(RENDERER_CHANNELS.SELF_MOD_STATUS, { channelId, isMod })
+        if (isMod) {
+          this.chatterPoller.startPolling(channelId)
+        } else {
+          this.chatterPoller.stopPolling(channelId)
+        }
       }
     )
 
@@ -174,6 +191,7 @@ class PlatformManager {
     if (!channel) return
 
     if (channel.platform === 'twitch') {
+      this.chatterPoller.stopPolling(channelId)
       this.twitchService.leaveChannel(channelId)
     } else if (channel.platform === 'youtube') {
       youtubeService.leaveChannel(channelId)
@@ -272,6 +290,7 @@ class PlatformManager {
     const affected = settings.channels.filter(c => c.platform === platform)
 
     if (platform === 'twitch') {
+      this.chatterPoller.stopAll()
       this.twitchService.reset()
     } else if (platform === 'youtube') {
       youtubeService.disconnectAll()
@@ -451,6 +470,10 @@ class PlatformManager {
       log.warn('getUserCard failed for', login, err)
       return null
     }
+  }
+
+  getViewerList(channelId: string): ViewerListPayload | null {
+    return this.chatterPoller.getLastResult(channelId)
   }
 }
 

@@ -23,7 +23,8 @@ import type {
   TogglePluginPayload,
   UserCardPayload,
   SevenTvCosmeticsPayload,
-  SevenTvCosmeticsResult
+  SevenTvCosmeticsResult,
+  GetViewerListPayload
 } from '../../shared/types/ipc'
 
 export function registerIpcHandlers(): void {
@@ -163,6 +164,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(MAIN_CHANNELS.GET_USER_CARD, (_e, payload: UserCardPayload) => {
     return platformManager.getUserCard(payload)
+  })
+
+  ipcMain.handle(MAIN_CHANNELS.GET_VIEWER_LIST, (_e, payload: GetViewerListPayload) => {
+    return platformManager.getViewerList(payload.channelId)
   })
 
   ipcMain.handle(MAIN_CHANNELS.OPEN_USER_CARD_WINDOW, (_e, payload: UserCardPayload) => {

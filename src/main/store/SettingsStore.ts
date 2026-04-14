@@ -56,6 +56,8 @@ const settingsSchema = z.object({
   clickableUsernames: z.boolean().default(true),
   showViewerCount: z.boolean().default(false),
   loadRecentMessages: z.boolean().default(true),
+  showViewerList: z.boolean().default(false),
+  viewerListWidth: z.number().default(180),
   windowBounds: z.object({
     x: z.number().nullable().default(null),
     y: z.number().nullable().default(null),
@@ -111,6 +113,8 @@ class SettingsStore {
       clickableUsernames: this.store.get('clickableUsernames', true),
       showViewerCount: this.store.get('showViewerCount', false),
       loadRecentMessages: this.store.get('loadRecentMessages', true),
+      showViewerList: this.store.get('showViewerList', false),
+      viewerListWidth: this.store.get('viewerListWidth', 180),
       windowBounds: this.store.get('windowBounds', DEFAULT_SETTINGS.windowBounds)
     }
   }

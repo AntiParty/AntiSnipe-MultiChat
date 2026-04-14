@@ -87,6 +87,10 @@ export interface AppSettings {
   showViewerCount: boolean      // show live viewer count in All tab + sidebar
   loadRecentMessages: boolean   // fetch last 100 messages on channel join
 
+  // Viewer list panel
+  showViewerList: boolean
+  viewerListWidth: number
+
   // Window state
   windowBounds: WindowBounds
 }
@@ -132,5 +136,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   clickableUsernames: true,
   showViewerCount: false,
   loadRecentMessages: true,
+  showViewerList: false,
+  viewerListWidth: 180,
   windowBounds: { x: null, y: null, width: 420, height: 900 }
 }
