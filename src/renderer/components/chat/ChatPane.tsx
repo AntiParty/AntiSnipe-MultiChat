@@ -104,50 +104,30 @@ export default function ChatPane() {
 
   return (
     <div
-      className="flex flex-col flex-1 min-h-0"
+      className="chatPaneRoot"
       style={{ background: 'var(--surface-0)', '--row-padding-y': rowPaddingY } as React.CSSProperties}
     >
       {/* Search bar */}
       {searchOpen && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '4px 8px',
-          background: 'var(--surface-2)',
-          borderBottom: '1px solid var(--border)',
-          flexShrink: 0
-        }}>
-          <Search size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+        <div className="chatPaneSearch">
+          <Search size={12} className="chatPaneSearchIcon" />
           <input
             ref={searchInputRef}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search messages…"
             spellCheck={false}
-            style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              fontSize: '12px',
-              color: 'var(--text-primary)',
-              padding: '2px 0'
-            }}
+            className="chatPaneSearchInput"
           />
           {searchQuery && (
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            <span className="chatPaneSearchCount">
               {visibleMessages.length} result{visibleMessages.length !== 1 ? 's' : ''}
             </span>
           )}
           <button
             onClick={closeSearch}
             title="Close search (Esc)"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--text-muted)', padding: '2px', flexShrink: 0
-            }}
+            className="chatPaneSearchClose"
           >
             <XIcon size={12} />
           </button>
@@ -155,8 +135,8 @@ export default function ChatPane() {
       )}
 
       {messages.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center">
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+        <div className="chatPaneEmpty">
+          <p>
             {activeChannelId === 'all'
               ? 'Add a channel using the + button above.'
               : 'Waiting for messages…'}
@@ -176,7 +156,7 @@ export default function ChatPane() {
               chatInputRef.current?.focus()
             }
           }}
-          className="flex-1 overflow-y-auto py-1"
+          className="chatPaneScroller"
           style={{ overflowAnchor: 'none' }}
         >
           {visibleMessages.map((msg, index) => (

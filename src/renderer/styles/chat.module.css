@@ -3,7 +3,7 @@
 .messageRow {
   /* Inline flow — everything on one line, wrapping naturally */
   display: block;
-  padding: 1px 8px;
+  padding: var(--row-padding-y, 1px) 8px;
   word-break: break-word;
   overflow-wrap: anywhere;
   line-height: 1.45;

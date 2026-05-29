@@ -15,7 +15,9 @@ const listeners = new Set<(userId: string) => void>()
 
 export function subscribeCosmeticsUpdate(fn: (userId: string) => void) {
   listeners.add(fn)
-  return () => listeners.delete(fn)
+  return () => {
+    listeners.delete(fn)
+  }
 }
 
 // ─── Fetch (via IPC → main process, avoids CSP) ───────────────────────────────
