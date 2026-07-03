@@ -161,6 +161,13 @@ class PlatformManager {
         )
         // Emotes for YouTube (no Twitch user ID, use channel name)
         emoteCacheManager.fetchForChannel({ channelId }).catch(log.error)
+
+        // With OAuth we can moderate (delete/timeout/ban) if the user is the
+        // chat owner or a moderator — enable the mod UI optimistically; the
+        // API returns a clear permission error otherwise
+        if (tokenStore.getAuthState('youtube').status === 'authenticated') {
+          broadcaster.send(RENDERER_CHANNELS.SELF_MOD_STATUS, { channelId, isMod: true })
+        }
       } else if (platform === 'kick') {
         emoteCacheManager.fetchForChannel({
           channelId,
@@ -304,11 +311,22 @@ class PlatformManager {
 
     if (channel.platform === 'twitch') {
       await this.twitchService.modAction(channelId, action, { targetUserId, messageId, duration })
+    } else if (channel.platform === 'youtube') {
+      await youtubeService.modAction(channelId, action, { targetUserId, messageId, duration })
+    } else {
+      throw new Error(`Mod actions are not supported on ${channel.platform}`)
     }
   }
 
   getSelfModStatuses(): Record<string, boolean> {
-    return this.twitchService.getSelfModStatuses()
+    const statuses = this.twitchService.getSelfModStatuses()
+    // YouTube: mod UI is available for all connected channels when authed
+    if (tokenStore.getAuthState('youtube').status === 'authenticated') {
+      for (const ch of settingsStore.get().channels) {
+        if (ch.platform === 'youtube') statuses[ch.id] = true
+      }
+    }
+    return statuses
   }
 
   getAllConnectionStates(): ConnectionState[] {

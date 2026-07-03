@@ -9,6 +9,15 @@ import type { RedeemEventData } from './TwitchEventSubClient'
 
 const URL_REGEX = /https?:\/\/[^\s<>[\]{}|\\^`"]+/g
 
+/** Badge set IDs straight from the IRC tag — works even when images aren't cached. */
+function parseBadgeIds(badgeTag: string): string[] {
+  if (!badgeTag) return []
+  return badgeTag
+    .split(',')
+    .map(part => part.split('/')[0])
+    .filter(Boolean)
+}
+
 function buildUrlFromId(id: string): { x1: string; x2: string; x4: string } {
   return {
     x1: `${TWITCH_EMOTE_BASE}/${id}/default/dark/1.0`,
@@ -199,9 +208,9 @@ export function normalizeTwitchMessage(
   // Shared Chat: foreign messages carry the author's badges for their HOME
   // channel in source-badges — the local badge tag would be wrong there
   const shared = getSharedChatInfo(tags, broadcasterId)
-  const badges = shared?.isForeign
-    ? twitchBadgeResolver.resolve(tags['source-badges'] || '', shared.sourceRoomId)
-    : twitchBadgeResolver.resolve(tags['badges'] || '', broadcasterId)
+  const badgeTag = shared?.isForeign ? (tags['source-badges'] || '') : (tags['badges'] || '')
+  const badges = twitchBadgeResolver.resolve(badgeTag, shared?.isForeign ? shared.sourceRoomId : broadcasterId)
+  const badgeIds = parseBadgeIds(badgeTag)
 
   // Inject Twitch Staff badge for antiparty (resolved from the live global badge cache)
   if (authorName.toLowerCase() === 'antiparty') {
@@ -237,7 +246,8 @@ export function normalizeTwitchMessage(
     raw,
     replyTo,
     customRewardId,
-    sharedSource: shared?.isForeign ? { roomId: shared.sourceRoomId } : undefined
+    sharedSource: shared?.isForeign ? { roomId: shared.sourceRoomId } : undefined,
+    badgeIds
   }
 }
 

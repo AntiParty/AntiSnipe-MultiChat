@@ -12,7 +12,8 @@ function toPluginMessage(msg: NormalizedMessage): PluginMessage {
     : p.type === 'emote' ? p.emote.name
     : p.type === 'link' ? p.url : ''
   ).join('')
-  const badges = msg.badges.map(b => b.id)
+  // Raw badge IDs survive even when badge images aren't cached
+  const badges = msg.badgeIds ?? msg.badges.map(b => b.id)
   return {
     id: msg.id, platform: msg.platform, channelId: msg.channelId,
     author: msg.authorName, authorDisplay: msg.authorDisplayName,

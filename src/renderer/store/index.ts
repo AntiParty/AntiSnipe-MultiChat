@@ -36,21 +36,23 @@ function retokenizeParts(parts: MessagePart[], emoteMap: Record<string, EmoteDat
 // Keep only the N most-recently-seen chatters per channel
 const MAX_CHATTERS = 500
 
-function deriveViewerRole(badges: import('@shared/types/message').BadgeInfo[]): import('@shared/types/viewer').ViewerRole {
-  for (const b of badges) {
-    if (b.id === 'broadcaster') return 'broadcaster'
-  }
-  for (const b of badges) {
-    if (b.id === 'moderator') return 'mod'
-  }
-  for (const b of badges) {
-    if (b.id === 'vip') return 'vip'
-  }
-  for (const b of badges) {
-    if (b.id === 'subscriber' || b.id === 'founder') return 'sub'
-  }
+function deriveViewerRole(msg: NormalizedMessage): import('@shared/types/viewer').ViewerRole {
+  // Prefer raw badge IDs from the IRC tag — resolved badges disappear when
+  // badge images aren't cached (e.g. anonymous connection), which used to
+  // dump every mod/sub into the "Viewers" bucket
+  const ids = msg.badgeIds ?? msg.badges.map(b => b.id)
+  if (ids.includes('broadcaster')) return 'broadcaster'
+  if (ids.includes('moderator')) return 'mod'
+  if (ids.includes('vip')) return 'vip'
+  if (ids.includes('subscriber') || ids.includes('founder')) return 'sub'
   return 'viewer'
 }
+
+// Viewer-list hygiene: message-derived entries fade out after inactivity and
+// the list is capped so an hours-long session doesn't accumulate everyone
+// who ever said a word.
+const VIEWER_INACTIVE_MS = 15 * 60 * 1000
+const MAX_VIEWER_ENTRIES = 800
 
 export interface UpdateStatus {
   checking: boolean
@@ -112,7 +114,7 @@ function buildChatSlice(set: SetState): ChatSlice {
             }
             const viewers = state.viewersByChannel[channelId]
             const vi = viewers.findIndex((v: ViewerEntry) => v.login === msg.authorName)
-            const role = deriveViewerRole(msg.badges)
+            const role = deriveViewerRole(msg)
             if (vi !== -1) {
               viewers[vi].messageCount++
               viewers[vi].lastSeenAt = msg.timestamp
@@ -141,6 +143,14 @@ function buildChatSlice(set: SetState): ChatSlice {
                 lastSeenAt: msg.timestamp,
                 fromApi: false
               })
+            }
+            // Cap the list: evict the least-recently-seen message-derived entries
+            if (viewers.length > MAX_VIEWER_ENTRIES) {
+              const sorted = [...viewers].sort((a, b) => {
+                if (a.fromApi !== b.fromApi) return a.fromApi ? -1 : 1
+                return b.lastSeenAt - a.lastSeenAt
+              })
+              state.viewersByChannel[channelId] = sorted.slice(0, MAX_VIEWER_ENTRIES)
             }
           }
         }
@@ -258,9 +268,16 @@ function buildViewerSlice(set: SetState): ViewerSlice {
       set(state => {
         const { channelId, viewers, totalCount, isApiData } = payload
         if (isApiData) {
-          // Merge API entries with existing message-derived entries
+          // The API list is authoritative: keep API-confirmed chatters plus
+          // anyone who spoke recently, dropping stale message-derived entries
+          // (people who left used to linger in the list forever)
           const existing = state.viewersByChannel[channelId] ?? []
-          const byLogin = new Map<string, ViewerEntry>(existing.map((v: ViewerEntry) => [v.login, v]))
+          const apiLogins = new Set(viewers.map((v: ViewerEntry) => v.login))
+          const cutoff = Date.now() - VIEWER_INACTIVE_MS
+          const byLogin = new Map<string, ViewerEntry>()
+          for (const v of existing) {
+            if (apiLogins.has(v.login) || v.lastSeenAt > cutoff) byLogin.set(v.login, v)
+          }
           for (const apiEntry of viewers) {
             const known = byLogin.get(apiEntry.login)
             if (known) {

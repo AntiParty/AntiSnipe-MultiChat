@@ -110,6 +110,25 @@ export class YouTubeChannel {
     await youtubeApiClient.sendMessage(this.liveChatId, text)
   }
 
+  async modAction(
+    action: 'ban' | 'timeout' | 'delete' | 'unban',
+    payload: { targetUserId: string; messageId?: string; duration?: number }
+  ): Promise<void> {
+    if (!this.liveChatId) throw new Error('YouTube channel not connected or no live stream')
+    if (action === 'delete') {
+      if (!payload.messageId) throw new Error('messageId required for delete action')
+      await youtubeApiClient.deleteMessage(payload.messageId)
+    } else if (action === 'ban') {
+      await youtubeApiClient.banUser(this.liveChatId, payload.targetUserId)
+    } else if (action === 'timeout') {
+      await youtubeApiClient.banUser(this.liveChatId, payload.targetUserId, payload.duration || 600)
+    } else {
+      // Unbanning needs the ban resource ID, which the API only returns at
+      // ban time — we don't persist those, so unban isn't supported yet
+      throw new Error('Unban is not supported for YouTube')
+    }
+  }
+
   private async poll(): Promise<void> {
     if (this.stopped || !this.liveChatId) return
 
@@ -208,6 +227,16 @@ export class YouTubeService {
 
   sendMessage(channelId: string, text: string): void {
     this.channels.get(channelId)?.sendMessage(text)
+  }
+
+  async modAction(
+    channelId: string,
+    action: 'ban' | 'timeout' | 'delete' | 'unban',
+    payload: { targetUserId: string; messageId?: string; duration?: number }
+  ): Promise<void> {
+    const channel = this.channels.get(channelId)
+    if (!channel) throw new Error(`YouTube channel ${channelId} not connected`)
+    await channel.modAction(action, payload)
   }
 
   disconnectAll(): void {

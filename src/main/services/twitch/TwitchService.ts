@@ -29,6 +29,13 @@ import type { NormalizedMessage, DeleteMessageEvent } from '../../../shared/type
 import type { ConnectionStatus } from '../../../shared/types/channel'
 import type { ModActionType } from '../../../shared/types/ipc'
 
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`
+  if (seconds < 86400) return `${Math.round(seconds / 3600)}h`
+  return `${Math.round(seconds / 86400)}d`
+}
+
 type OnMessage = (msg: NormalizedMessage) => void
 type OnDelete = (event: DeleteMessageEvent) => void
 type OnStatus = (status: ConnectionStatus, error?: string) => void
@@ -60,6 +67,8 @@ export class TwitchService {
   private selfBadgeTags = new Map<string, string>()   // channelId → last known badge tag string
   private selfModStatus = new Map<string, boolean>()  // channelId → is mod/broadcaster
   private eventSub: TwitchEventSubClient
+  private sourceNameCache = new Map<string, string>() // shared-chat roomId → display name
+  private sourceNameFetching = new Set<string>()
 
   constructor(onMessage: OnMessage, onDelete: OnDelete, onStatus: OnStatus, onRoomState: OnRoomState, onSelfModStatus: OnSelfModStatus) {
     this.onMessage = onMessage
@@ -307,7 +316,13 @@ export class TwitchService {
           settings.keywordAlerts,
           isAction
         )
-        if (normalized) this.onMessage(normalized)
+        if (normalized) {
+          if (normalized.sharedSource) {
+            normalized.sharedSource.channelName =
+              this.resolveSourceChannelName(normalized.sharedSource.roomId)
+          }
+          this.onMessage(normalized)
+        }
         break
       }
 
@@ -321,7 +336,13 @@ export class TwitchService {
         if (shouldDropSharedMessage(shared, !!(shared && this.findHandleByBroadcasterId(shared.sourceRoomId)))) break
 
         const normalized = normalizeUserNotice(msg, handle.channelId, handle.displayName, handle.broadcasterId)
-        if (normalized) this.onMessage(normalized)
+        if (normalized) {
+          if (normalized.sharedSource) {
+            normalized.sharedSource.channelName =
+              this.resolveSourceChannelName(normalized.sharedSource.roomId)
+          }
+          this.onMessage(normalized)
+        }
         break
       }
 
@@ -334,6 +355,19 @@ export class TwitchService {
           channelId: handle.channelId,
           authorId: targetUser ? msg.tags['target-user-id'] : undefined
         })
+        // Chatterino-style moderation notices
+        if (targetUser) {
+          const duration = parseInt(msg.tags['ban-duration'] || '', 10)
+          this.onMessage(buildSystemMessage(
+            handle.channelId,
+            handle.displayName,
+            Number.isFinite(duration)
+              ? `${targetUser} was timed out for ${formatDuration(duration)}.`
+              : `${targetUser} was banned.`
+          ))
+        } else {
+          this.onMessage(buildSystemMessage(handle.channelId, handle.displayName, 'Chat was cleared by a moderator.'))
+        }
         break
       }
 
@@ -524,6 +558,37 @@ export class TwitchService {
       if (handle.broadcasterId === broadcasterId) return handle
     }
     return undefined
+  }
+
+  /** Display name for a shared-chat source room. Cache misses trigger a
+   *  background Helix lookup, so the first message may show a generic
+   *  "shared" tag and later ones get "via ChannelName". */
+  private resolveSourceChannelName(roomId: string): string | undefined {
+    const handle = this.findHandleByBroadcasterId(roomId)
+    if (handle) return handle.displayName
+    const cached = this.sourceNameCache.get(roomId)
+    if (cached) return cached
+    if (!this.sourceNameFetching.has(roomId)) {
+      this.sourceNameFetching.add(roomId)
+      this.fetchSourceChannelName(roomId)
+        .catch(err => log.warn('Shared-chat name lookup failed:', err))
+        .finally(() => this.sourceNameFetching.delete(roomId))
+    }
+    return undefined
+  }
+
+  private async fetchSourceChannelName(roomId: string): Promise<void> {
+    let accessToken = tokenStore.getAccessToken('twitch')
+    if (!accessToken) accessToken = await twitchAuth.refreshAccessToken()
+    const { twitchClientId: clientId } = settingsStore.get()
+    if (!accessToken || !clientId) return
+    const resp = await net.fetch(`${TWITCH_HELIX_BASE}/users?id=${encodeURIComponent(roomId)}`, {
+      headers: { Authorization: `Bearer ${accessToken}`, 'Client-Id': clientId }
+    })
+    if (!resp.ok) return
+    const data = await resp.json() as { data?: Array<{ display_name?: string; login?: string }> }
+    const name = data.data?.[0]?.display_name || data.data?.[0]?.login
+    if (name) this.sourceNameCache.set(roomId, name)
   }
 
   private async loadBadges(handle: TwitchChannelHandle): Promise<void> {

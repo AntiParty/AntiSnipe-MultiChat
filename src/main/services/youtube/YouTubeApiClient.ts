@@ -197,6 +197,57 @@ export class YouTubeApiClient {
     }
   }
 
+  private async requireAccessToken(): Promise<string> {
+    let accessToken = tokenStore.getAccessToken('youtube')
+    if (!accessToken) accessToken = await youtubeAuth.refreshAccessToken()
+    if (!accessToken) throw new Error('YouTube authentication required')
+    return accessToken
+  }
+
+  /** Delete a live chat message. Requires owner/moderator of the chat. */
+  async deleteMessage(messageId: string): Promise<void> {
+    const accessToken = await this.requireAccessToken()
+    const url = new URL(`${YOUTUBE_API_BASE}/liveChat/messages`)
+    url.searchParams.set('id', messageId)
+    const resp = await net.fetch(url.toString(), {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}` }
+    })
+    if (!resp.ok && resp.status !== 404) {
+      throw new Error(await this.modErrorText('Delete message', resp))
+    }
+  }
+
+  /** Ban (permanent) or timeout (temporary) a user in a live chat. */
+  async banUser(liveChatId: string, targetChannelId: string, durationSeconds?: number): Promise<void> {
+    const accessToken = await this.requireAccessToken()
+    const snippet: Record<string, unknown> = {
+      liveChatId,
+      type: durationSeconds ? 'temporary' : 'permanent',
+      bannedUserDetails: { channelId: targetChannelId }
+    }
+    if (durationSeconds) snippet.banDurationSeconds = durationSeconds
+    const resp = await net.fetch(`${YOUTUBE_API_BASE}/liveChat/bans?part=snippet`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ snippet })
+    })
+    if (!resp.ok) {
+      throw new Error(await this.modErrorText(durationSeconds ? 'Timeout' : 'Ban', resp))
+    }
+  }
+
+  private async modErrorText(action: string, resp: Response): Promise<string> {
+    if (resp.status === 403) {
+      return `${action} failed: you must be the owner or a moderator of this YouTube chat`
+    }
+    const body = await resp.text().catch(() => '')
+    return `${action} failed: HTTP ${resp.status}${body ? ` ${body.slice(0, 200)}` : ''}`
+  }
+
   async sendMessage(liveChatId: string, messageText: string): Promise<boolean> {
     let accessToken = tokenStore.getAccessToken('youtube')
     if (!accessToken) accessToken = await youtubeAuth.refreshAccessToken()
