@@ -147,7 +147,17 @@ export default function ChatTabs() {
   return (
     <>
       {/* Tab bar */}
-      <div className="chatTabBar" role="tablist" aria-label="Channels">
+      <div style={{
+        display: 'flex',
+        alignItems: 'stretch',
+        height: '26px',
+        background: 'var(--surface-1)',
+        borderBottom: '1px solid var(--border)',
+        overflowX: 'auto',
+        overflowY: 'hidden',
+        scrollbarWidth: 'none',
+        flexShrink: 0
+      }}>
         <Tab
           label="All"
           isActive={activeChannelId === 'all'}
@@ -171,7 +181,19 @@ export default function ChatTabs() {
         <button
           onClick={() => setShowAdd(true)}
           title="Add channel"
-          className="chatTabAdd"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '28px',
+            flexShrink: 0,
+            border: 'none',
+            borderBottom: '2px solid transparent',
+            background: 'transparent',
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+            transition: 'color 0.1s'
+          }}
         >
           <Plus size={12} />
         </button>
@@ -361,21 +383,20 @@ function Tab({ label, isActive, onClick, platformColor, unread, viewerCount, onR
   return (
     <>
       <div
-        role="tab"
-        aria-selected={isActive}
-        tabIndex={0}
         onClick={onClick}
-        onKeyDown={e => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            onClick()
-          }
-        }}
         onContextMenu={handleContextMenu}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        className="chatTab"
         style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '0 8px',
+          fontSize: '11px',
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+          height: '100%',
+          cursor: 'pointer',
           borderBottom: isActive
             ? `2px solid ${platformColor ?? 'var(--accent)'}`
             : '2px solid transparent',

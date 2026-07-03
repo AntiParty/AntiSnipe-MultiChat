@@ -1,5 +1,4 @@
 import { RENDERER_CHANNELS, MAIN_CHANNELS } from '@shared/types/ipc'
-import { ensureTauriBridgeInstalled } from '../../services/tauriBridge'
 import { useStore } from '../index'
 
 /**
@@ -7,7 +6,7 @@ import { useStore } from '../index'
  * the Zustand store. Returns a cleanup function.
  */
 export function initIpcSync(): () => void {
-  const bridge = ensureTauriBridgeInstalled()
+  const bridge = window.chatBridge
   const unsubscribers: Array<() => void> = []
 
   // Load initial settings

@@ -20,22 +20,26 @@ export default function TitleBar() {
 
   return (
     <div
-      className="titleBar"
+      className="flex items-center shrink-0 select-none"
       style={{
+        height: 'var(--titlebar-height)',
+        background: 'var(--titlebar-bg)',
+        borderBottom: '1px solid var(--border)',
         WebkitAppRegion: 'drag'
       } as React.CSSProperties}
     >
       <span
-        className="titleBarBrand"
+        className="px-2 text-xs"
+        style={{ color: 'var(--text-muted)', letterSpacing: '0.02em' }}
       >
         Confluence
       </span>
 
-      <div className="titleBarSpacer" />
+      <div className="flex-1" />
 
       {/* Window controls — no-drag zone */}
       <div
-        className="titleBarControls"
+        className="flex items-center h-full"
         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       >
         <TitleBtn onClick={openSettings} label="Settings">
@@ -71,7 +75,13 @@ function TitleBtn({
       onClick={onClick}
       title={label}
       aria-label={label}
-      className="titleBarButton"
+      className="flex items-center justify-center h-full transition-colors"
+      style={{
+        width: '32px',
+        color: 'var(--text-muted)',
+        background: 'transparent',
+        border: 'none'
+      }}
       onMouseEnter={e => {
         ;(e.currentTarget as HTMLButtonElement).style.background = danger
           ? '#c42b2b'

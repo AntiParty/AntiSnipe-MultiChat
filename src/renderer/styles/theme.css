@@ -43,10 +43,6 @@
   /* Titlebar — matches Chatterino's native-ish header */
   --titlebar-bg: #111111;
   --titlebar-height: 28px;
-  --tabbar-height: 24px;
-  --pane-header-height: 28px;
-  --pane-border: #2f2f2f;
-  --splitter-size: 3px;
 
   /* Sidebar / channel panel */
   --sidebar-width: 180px;
@@ -90,7 +86,6 @@
   --warning: #c07000;
 
   --titlebar-bg: #e0e0e0;
-  --pane-border: #c8c8c8;
   --sidebar-bg: #e8e8e8;
 
   --link: #2070c0;

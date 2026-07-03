@@ -112,21 +112,22 @@ export default function App() {
   }, [updateSettings, openSettings, closeSettings])
 
   return (
-    <div className="appShell">
+    <div
+      className="flex flex-col h-full overflow-hidden"
+      style={{ background: 'var(--surface-0)', color: 'var(--text-primary)' }}
+    >
       <TitleBar />
       <UpdateBanner />
       <ChatTabs />
       <ChannelHeader />
-      <main className="chatWorkspace" aria-label="Chat workspace">
-        <section className="chatSplitGrid" aria-label="Chat pane group">
-          <div className="chatSplitPane chatSplitPaneActive" data-pane-id={activeChannelId}>
-            <ChatPane key={activeChannelId} />
-          </div>
-        </section>
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <ChatPane key={activeChannelId} />
+        </div>
         {viewerListOpen && activeChannelId !== 'all' && (
           <ViewerListPanel channelId={activeChannelId} />
         )}
-      </main>
+      </div>
       <StatusBar />
       <SettingsModal />
     </div>
