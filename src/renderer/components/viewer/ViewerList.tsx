@@ -5,6 +5,10 @@ import type { ViewerEntry, ViewerRole } from '@shared/types/viewer'
 
 const VIEWER_CAP = 200
 
+// Stable fallback — returning a fresh [] from the selector makes Zustand
+// see a new snapshot every render and loops React ("Maximum update depth")
+const NO_VIEWERS: ViewerEntry[] = []
+
 const ROLE_ORDER: ViewerRole[] = ['broadcaster', 'mod', 'vip', 'sub', 'viewer']
 const ROLE_LABELS: Record<ViewerRole, string> = {
   broadcaster: 'Broadcaster',
@@ -77,7 +81,7 @@ interface Props {
 }
 
 export default function ViewerList({ channelId }: Props) {
-  const viewers = useStore(s => s.viewersByChannel[channelId] ?? [])
+  const viewers = useStore(s => s.viewersByChannel[channelId] ?? NO_VIEWERS)
   const total   = useStore(s => s.viewerTotalByChannel[channelId])
   const isApi   = useStore(s => s.viewerIsApiByChannel[channelId] ?? false)
   const channel = useStore(s => s.channels.find(c => c.id === channelId))

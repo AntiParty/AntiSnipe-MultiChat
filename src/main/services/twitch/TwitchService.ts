@@ -80,10 +80,13 @@ export class TwitchService {
         )
         this.onMessage(normalized)
       },
-      () => ({
-        accessToken: tokenStore.getAccessToken('twitch'),
-        clientId: settingsStore.get().twitchClientId
-      })
+      async () => {
+        let accessToken = tokenStore.getAccessToken('twitch')
+        if (!accessToken) {
+          accessToken = await twitchAuth.refreshAccessToken()
+        }
+        return { accessToken, clientId: settingsStore.get().twitchClientId }
+      }
     )
   }
 

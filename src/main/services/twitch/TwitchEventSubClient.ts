@@ -51,11 +51,12 @@ export class TwitchEventSubClient {
   private stopped = false
 
   private onRedeem: (data: RedeemEventData) => void
-  private getAuth: () => { accessToken: string | null; clientId: string }
+  private getAuth: () => Promise<{ accessToken: string | null; clientId: string }>
 
   constructor(
     onRedeem: (data: RedeemEventData) => void,
-    getAuth: () => { accessToken: string | null; clientId: string }
+    // Async so callers can refresh an expired access token before we subscribe
+    getAuth: () => Promise<{ accessToken: string | null; clientId: string }>
   ) {
     this.onRedeem = onRedeem
     this.getAuth = getAuth
@@ -65,12 +66,16 @@ export class TwitchEventSubClient {
   addChannel(broadcasterId: string, channelId: string): void {
     this.channelMap.set(broadcasterId, channelId)
     if (this.sessionId) {
-      const { accessToken, clientId } = this.getAuth()
-      if (accessToken && clientId) {
-        this.subscribe(broadcasterId, accessToken, clientId).catch(log.error)
-      }
+      this.subscribeWithAuth(broadcasterId).catch(log.error)
     } else {
       this.ensureConnected()
+    }
+  }
+
+  private async subscribeWithAuth(broadcasterId: string): Promise<void> {
+    const { accessToken, clientId } = await this.getAuth()
+    if (accessToken && clientId) {
+      await this.subscribe(broadcasterId, accessToken, clientId)
     }
   }
 
@@ -154,17 +159,7 @@ export class TwitchEventSubClient {
         // Give 2 extra seconds beyond Twitch's stated timeout
         this.resetKeepalive((keepaliveSecs + 2) * 1000)
         log.info('EventSub: session ready', this.sessionId)
-
-        const { accessToken, clientId } = this.getAuth()
-        if (!accessToken || !clientId) {
-          log.warn('EventSub: no auth available — channel point redeems will be unavailable')
-          return
-        }
-        for (const broadcasterId of this.channelMap.keys()) {
-          if (!this.subscribed.has(broadcasterId)) {
-            this.subscribe(broadcasterId, accessToken, clientId).catch(log.error)
-          }
-        }
+        this.subscribeAllChannels().catch(log.error)
         break
       }
 
@@ -217,6 +212,28 @@ export class TwitchEventSubClient {
       case 'revocation':
         log.warn('EventSub: subscription revoked — may need re-auth or scope is missing')
         break
+    }
+  }
+
+  private async subscribeAllChannels(): Promise<void> {
+    const { accessToken, clientId } = await this.getAuth()
+    if (!accessToken || !clientId) {
+      // Anonymous (or refresh failed): Twitch drops sessions with no
+      // subscriptions after ~10s, which put us in a permanent
+      // connect/close/reconnect loop. Pause instead — the next
+      // addChannel() (channel join or re-auth rejoin) re-arms us.
+      log.warn('EventSub: no auth available — pausing until the next channel join')
+      this.stopped = true
+      this.clearTimers()
+      this.ws?.close()
+      this.ws = null
+      this.sessionId = null
+      return
+    }
+    for (const broadcasterId of this.channelMap.keys()) {
+      if (!this.subscribed.has(broadcasterId)) {
+        this.subscribe(broadcasterId, accessToken, clientId).catch(log.error)
+      }
     }
   }
 
