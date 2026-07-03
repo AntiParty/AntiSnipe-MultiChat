@@ -57,6 +57,8 @@ export interface NormalizedMessage {
   rewardTitle?: string       // populated for EventSub-sourced redemptions
   pluginAction?: PluginAction
   isHistorical?: boolean
+  /** Twitch Shared Chat: set when the message originated in a different channel. */
+  sharedSource?: { roomId: string; channelName?: string }
 }
 
 export interface DeleteMessageEvent {

@@ -14,6 +14,7 @@ import {
   buildSystemMessage
 } from './TwitchMessageNormalizer'
 import { TwitchEventSubClient } from './TwitchEventSubClient'
+import { getSharedChatInfo, shouldDropSharedMessage } from './sharedChat'
 import {
   TWITCH_IRC_URL,
   TWITCH_IRC_CAPS,
@@ -265,6 +266,13 @@ export class TwitchService {
         const handle = this.findHandleBySlug(channel)
         if (!handle) break
 
+        // Shared Chat: drop foreign copies when their home channel is open here
+        const shared = getSharedChatInfo(msg.tags, handle.broadcasterId)
+        const sourceHandle = shared?.isForeign
+          ? this.findHandleByBroadcasterId(shared.sourceRoomId)
+          : undefined
+        if (shouldDropSharedMessage(shared, !!sourceHandle)) break
+
         // Skip echo of own optimistically-injected messages
         const senderLogin = nickFromPrefix(msg.prefix || '').toLowerCase()
         const { username } = tokenStore.getUserInfo('twitch')
@@ -307,7 +315,12 @@ export class TwitchService {
         const channel = msg.params[0]?.slice(1)
         const handle = this.findHandleBySlug(channel)
         if (!handle) break
-        const normalized = normalizeUserNotice(msg, handle.channelId, handle.displayName)
+
+        // Shared Chat: same dedup as PRIVMSG so subs/raids don't show twice
+        const shared = getSharedChatInfo(msg.tags, handle.broadcasterId)
+        if (shouldDropSharedMessage(shared, !!(shared && this.findHandleByBroadcasterId(shared.sourceRoomId)))) break
+
+        const normalized = normalizeUserNotice(msg, handle.channelId, handle.displayName, handle.broadcasterId)
         if (normalized) this.onMessage(normalized)
         break
       }
@@ -502,6 +515,13 @@ export class TwitchService {
   private findHandleBySlug(slug: string): TwitchChannelHandle | undefined {
     for (const handle of this.channels.values()) {
       if (handle.slug === slug) return handle
+    }
+    return undefined
+  }
+
+  private findHandleByBroadcasterId(broadcasterId: string): TwitchChannelHandle | undefined {
+    for (const handle of this.channels.values()) {
+      if (handle.broadcasterId === broadcasterId) return handle
     }
     return undefined
   }

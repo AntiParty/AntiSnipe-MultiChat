@@ -1,4 +1,5 @@
 import { parseEmoteTag, nickFromPrefix } from './TwitchIrcParser'
+import { getSharedChatInfo } from './sharedChat'
 import { twitchBadgeResolver } from './TwitchBadgeResolver'
 import { emoteResolver } from '../../emotes/EmoteResolver'
 import { TWITCH_EMOTE_BASE } from '../../../shared/constants'
@@ -195,7 +196,12 @@ export function normalizeTwitchMessage(
     parts.push(...tokenizeText(bodyText.slice(cursor), channelId, mentionKeywords))
   }
 
-  const badges = twitchBadgeResolver.resolve(tags['badges'] || '', broadcasterId)
+  // Shared Chat: foreign messages carry the author's badges for their HOME
+  // channel in source-badges — the local badge tag would be wrong there
+  const shared = getSharedChatInfo(tags, broadcasterId)
+  const badges = shared?.isForeign
+    ? twitchBadgeResolver.resolve(tags['source-badges'] || '', shared.sourceRoomId)
+    : twitchBadgeResolver.resolve(tags['badges'] || '', broadcasterId)
 
   // Inject Twitch Staff badge for antiparty (resolved from the live global badge cache)
   if (authorName.toLowerCase() === 'antiparty') {
@@ -230,7 +236,8 @@ export function normalizeTwitchMessage(
     timestamp,
     raw,
     replyTo,
-    customRewardId
+    customRewardId,
+    sharedSource: shared?.isForeign ? { roomId: shared.sourceRoomId } : undefined
   }
 }
 
@@ -270,9 +277,11 @@ export function normalizeRedeemEvent(
 export function normalizeUserNotice(
   msg: ParsedIrcMessage,
   channelId: string,
-  channelDisplayName: string
+  channelDisplayName: string,
+  broadcasterId?: string
 ): NormalizedMessage | null {
   const tags = msg.tags
+  const shared = getSharedChatInfo(tags, broadcasterId)
   const msgId = tags['id'] || `${Date.now()}-${Math.random()}`
   const subType = tags['msg-id']
   const systemMsg = tags['system-msg'] || ''
@@ -300,6 +309,7 @@ export function normalizeUserNotice(
     isAction: false,
     isDeleted: false,
     timestamp: Date.now(),
-    raw: systemMsg
+    raw: systemMsg,
+    sharedSource: shared?.isForeign ? { roomId: shared.sourceRoomId } : undefined
   }
 }

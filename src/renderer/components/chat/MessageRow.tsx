@@ -324,6 +324,16 @@ function MessageRow({ message, index }: MessageRowProps) {
             </span>
           )}
 
+          {message.sharedSource && (
+            <span
+              className={styles.pluginTag}
+              title="Sent from another channel in a Twitch Shared Chat session"
+              style={{ background: '#a970ff22', color: '#a970ff' }}
+            >
+              {message.sharedSource.channelName ? `via ${message.sharedSource.channelName}` : 'shared'}
+            </span>
+          )}
+
           {showBadges && <InlineBadges badges={message.badges} />}
 
           {show7tvBadges && sevenTvCosmetics?.badge && (() => {
