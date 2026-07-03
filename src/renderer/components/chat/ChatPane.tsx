@@ -49,17 +49,18 @@ export default function ChatPane() {
     setSearchOpen(false)
   }, [])
 
-  // Only render the last RENDER_LIMIT messages to keep the DOM lean,
-  // then filter by search query if one is active.
-  const trimmed = messages.length > RENDER_LIMIT
-    ? messages.slice(messages.length - RENDER_LIMIT)
+  // Search the FULL message buffer (not just the rendered window), then cap
+  // what's actually mounted in the DOM to the most recent RENDER_LIMIT rows.
+  const query = searchQuery.trim().toLowerCase()
+  const filtered = query
+    ? messages.filter(m => m.raw?.toLowerCase().includes(query) ||
+        m.authorName?.toLowerCase().includes(query) ||
+        m.authorDisplayName?.toLowerCase().includes(query))
     : messages
 
-  const visibleMessages = searchQuery.trim()
-    ? trimmed.filter(m => m.raw?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.authorName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.authorDisplayName?.toLowerCase().includes(searchQuery.toLowerCase()))
-    : trimmed
+  const visibleMessages = filtered.length > RENDER_LIMIT
+    ? filtered.slice(filtered.length - RENDER_LIMIT)
+    : filtered
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
     const el = scrollRef.current
@@ -137,7 +138,7 @@ export default function ChatPane() {
           />
           {searchQuery && (
             <span style={{ fontSize: '10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              {visibleMessages.length} result{visibleMessages.length !== 1 ? 's' : ''}
+              {filtered.length} result{filtered.length !== 1 ? 's' : ''}
             </span>
           )}
           <button

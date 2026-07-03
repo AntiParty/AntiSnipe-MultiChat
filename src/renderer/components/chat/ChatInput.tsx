@@ -4,6 +4,25 @@ import { useStore } from '../../store'
 import type { ChatterInfo } from '../../store/slices/chatSlice'
 import type { NormalizedMessage } from '@shared/types/message'
 import type { PluginMessage } from '@shared/types/plugin'
+import type { EmoteData } from '@shared/types/emote'
+
+type Suggestion =
+  | { kind: 'chatter'; chatter: ChatterInfo }
+  | { kind: 'emote'; emote: EmoteData }
+
+function matchEmotes(emoteMap: Record<string, EmoteData> | undefined, query: string, max: number): Suggestion[] {
+  if (!emoteMap || query.length < 2) return []
+  const q = query.toLowerCase()
+  const prefix: EmoteData[] = []
+  const contains: EmoteData[] = []
+  for (const emote of Object.values(emoteMap)) {
+    const name = emote.name.toLowerCase()
+    if (name.startsWith(q)) prefix.push(emote)
+    else if (name.includes(q)) contains.push(emote)
+    if (prefix.length >= max) break
+  }
+  return [...prefix, ...contains].slice(0, max).map(emote => ({ kind: 'emote' as const, emote }))
+}
 
 interface ChatInputProps {
   channelId: string
@@ -21,7 +40,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [focused, setFocused] = useState(false)
-  const [suggestions, setSuggestions] = useState<ChatterInfo[]>([])
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [mentionStart, setMentionStart] = useState(-1)
 
@@ -33,6 +52,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput
   const channels = useStore(s => s.channels)
   const auth = useStore(s => s.auth)
   const chatters = useStore(s => s.chattersByChannel[channelId])
+  const emoteMap = useStore(s => s.emotesByChannel[channelId])
 
   const channel = channels.find(c => c.id === channelId)
   const isAuthRequired =
@@ -49,41 +69,51 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput
 
   // ── Autocomplete ─────────────────────────────────────────────────────────
 
-  const getMentionQuery = useCallback((value: string, cursor: number): { start: number; query: string } | null => {
+  /** The whitespace-delimited word the cursor is inside (start index + raw word). */
+  const getWordAtCursor = useCallback((value: string, cursor: number): { start: number; word: string } => {
     let i = cursor - 1
     while (i >= 0 && value[i] !== ' ' && value[i] !== '\n') i--
     const wordStart = i + 1
-    const word = value.slice(wordStart, cursor)
-    if (!word.startsWith('@')) return null
-    return { start: wordStart, query: word.slice(1).toLowerCase() }
+    return { start: wordStart, word: value.slice(wordStart, cursor) }
   }, [])
 
+  const matchChatters = useCallback((query: string): Suggestion[] => {
+    if (!chatters) return []
+    const all = [...chatters].reverse()
+    const matched = query.length === 0
+      ? all.slice(0, MAX_SUGGESTIONS)
+      : all.filter(c =>
+          c.login.toLowerCase().startsWith(query) ||
+          c.displayName.toLowerCase().startsWith(query)
+        ).slice(0, MAX_SUGGESTIONS)
+    return matched.map(chatter => ({ kind: 'chatter' as const, chatter }))
+  }, [chatters])
+
   const updateSuggestions = useCallback((value: string, cursor: number) => {
-    const mention = getMentionQuery(value, cursor)
-    if (!mention || !chatters) {
+    const { start, word } = getWordAtCursor(value, cursor)
+    let matched: Suggestion[] = []
+    if (word.startsWith('@')) {
+      matched = matchChatters(word.slice(1).toLowerCase())
+    } else if (word.startsWith(':')) {
+      // Chatterino-style :emote completion
+      matched = matchEmotes(emoteMap, word.slice(1), MAX_SUGGESTIONS)
+    }
+    if (matched.length === 0) {
       setSuggestions([])
       setMentionStart(-1)
       return
     }
-    setMentionStart(mention.start)
-    const all = [...chatters].reverse()
-    const matched = mention.query.length === 0
-      ? all.slice(0, MAX_SUGGESTIONS)
-      : all.filter(c =>
-          c.login.toLowerCase().startsWith(mention.query) ||
-          c.displayName.toLowerCase().startsWith(mention.query)
-        ).slice(0, MAX_SUGGESTIONS)
+    setMentionStart(start)
     setSuggestions(matched)
     setSelectedIdx(0)
-  }, [chatters, getMentionQuery])
+  }, [emoteMap, getWordAtCursor, matchChatters])
 
-  const applySuggestion = useCallback((chatter: ChatterInfo) => {
+  const applySuggestion = useCallback((s: Suggestion) => {
     const cursor = inputRef.current?.selectionStart ?? text.length
-    const mention = getMentionQuery(text, cursor)
-    if (!mention) return
-    const before = text.slice(0, mention.start)
+    const { start } = getWordAtCursor(text, cursor)
+    const before = text.slice(0, start)
     const after = text.slice(cursor)
-    const replacement = `@${chatter.displayName} `
+    const replacement = s.kind === 'chatter' ? `@${s.chatter.displayName} ` : `${s.emote.name} `
     const newText = before + replacement + after
     setText(newText)
     setSuggestions([])
@@ -95,7 +125,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput
       const pos = before.length + replacement.length
       el.setSelectionRange(pos, pos)
     })
-  }, [text, getMentionQuery])
+  }, [text, getWordAtCursor])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
@@ -109,6 +139,25 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput
       if (e.key === 'ArrowUp')   { e.preventDefault(); setSelectedIdx(i => Math.max(i - 1, 0)); return }
       if (e.key === 'Tab' || e.key === 'Enter') { e.preventDefault(); applySuggestion(suggestions[selectedIdx]); return }
       if (e.key === 'Escape') { setSuggestions([]); setMentionStart(-1); return }
+    }
+    // Chatterino-style Tab completion on a bare word → emote suggestions
+    if (e.key === 'Tab') {
+      const cursor = inputRef.current?.selectionStart ?? text.length
+      const { start, word } = getWordAtCursor(text, cursor)
+      if (word.length >= 2 && !word.startsWith('@') && !word.startsWith(':')) {
+        const matched = matchEmotes(emoteMap, word, MAX_SUGGESTIONS)
+        if (matched.length > 0) {
+          e.preventDefault()
+          if (matched.length === 1) {
+            applySuggestion(matched[0])
+          } else {
+            setMentionStart(start)
+            setSuggestions(matched)
+            setSelectedIdx(0)
+          }
+          return
+        }
+      }
     }
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
@@ -292,12 +341,12 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput
             color: 'var(--text-muted)',
             borderBottom: '1px solid var(--border)'
           }}>
-            Mention
+            {suggestions[0]?.kind === 'emote' ? 'Emotes' : 'Mention'}
           </div>
-          {suggestions.map((c, i) => (
+          {suggestions.map((s, i) => (
             <div
-              key={c.login}
-              onMouseDown={e => { e.preventDefault(); applySuggestion(c) }}
+              key={s.kind === 'chatter' ? `c:${s.chatter.login}` : `e:${s.emote.provider}:${s.emote.id}`}
+              onMouseDown={e => { e.preventDefault(); applySuggestion(s) }}
               onMouseEnter={() => setSelectedIdx(i)}
               style={{
                 display: 'flex',
@@ -310,28 +359,48 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput
                 userSelect: 'none'
               }}
             >
-              {/* Initial avatar */}
-              <span style={{
-                width: '18px',
-                height: '18px',
-                borderRadius: '50%',
-                background: `hsl(${(c.login.charCodeAt(0) * 37) % 360} 45% 35%)`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '9px',
-                fontWeight: 700,
-                color: '#fff',
-                flexShrink: 0,
-                textTransform: 'uppercase'
-              }}>
-                {c.displayName[0]}
-              </span>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                {c.displayName}
-              </span>
-              {c.displayName.toLowerCase() !== c.login.toLowerCase() && (
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{c.login}</span>
+              {s.kind === 'chatter' ? (
+                <>
+                  {/* Initial avatar */}
+                  <span style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    background: `hsl(${(s.chatter.login.charCodeAt(0) * 37) % 360} 45% 35%)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    color: '#fff',
+                    flexShrink: 0,
+                    textTransform: 'uppercase'
+                  }}>
+                    {s.chatter.displayName[0]}
+                  </span>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {s.chatter.displayName}
+                  </span>
+                  {s.chatter.displayName.toLowerCase() !== s.chatter.login.toLowerCase() && (
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{s.chatter.login}</span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <img
+                    src={s.emote.urls.x1}
+                    alt={s.emote.name}
+                    loading="lazy"
+                    draggable={false}
+                    style={{ width: '18px', height: '18px', objectFit: 'contain', flexShrink: 0 }}
+                  />
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {s.emote.name}
+                  </span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                    {s.emote.provider}
+                  </span>
+                </>
               )}
             </div>
           ))}
