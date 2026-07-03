@@ -4,7 +4,7 @@ import log from 'electron-log'
 import { settingsStore } from '../store/SettingsStore'
 import { tokenStore } from './TokenStore'
 import { broadcaster } from '../ipc/broadcaster'
-import { startLocalAuthServer, YOUTUBE_REDIRECT_URI } from './LocalAuthServer'
+import { startLocalAuthServer, AuthFlowSupersededError, YOUTUBE_REDIRECT_URI } from './LocalAuthServer'
 import { RENDERER_CHANNELS } from '../../shared/types/ipc'
 import { YOUTUBE_AUTH_BASE, YOUTUBE_TOKEN_URL, YOUTUBE_SCOPES } from '../../shared/constants'
 
@@ -17,6 +17,15 @@ interface PendingAuth {
 class YouTubeAuth {
   private pending: PendingAuth | null = null
 
+  /** Client ID/secret with pasted whitespace stripped — a trailing newline breaks the token exchange. */
+  private getCredentials(): { clientId: string; clientSecret: string } {
+    const settings = settingsStore.get()
+    return {
+      clientId: (settings.googleClientId ?? '').trim(),
+      clientSecret: (settings.googleClientSecret ?? '').trim()
+    }
+  }
+
   private generateCodeVerifier(): string {
     return crypto.randomBytes(64).toString('base64url')
   }
@@ -26,14 +35,14 @@ class YouTubeAuth {
   }
 
   async startFlow(): Promise<void> {
-    const settings = settingsStore.get()
-    const clientId = settings.googleClientId
-    const clientSecret = settings.googleClientSecret
+    const { clientId, clientSecret } = this.getCredentials()
     if (!clientId || !clientSecret) {
-      broadcaster.send(RENDERER_CHANNELS.PLATFORM_ERROR, {
-        channelId: '',
-        code: 'NO_CLIENT_ID',
-        message: 'Google Client ID and Client Secret are required. Add them in Settings → Auth.'
+      broadcaster.send(RENDERER_CHANNELS.AUTH_STATE_CHANGED, {
+        platform: 'youtube',
+        state: {
+          status: 'error',
+          error: 'Google Client ID and Client Secret are required. Add them in Settings → Auth.'
+        }
       })
       return
     }
@@ -62,11 +71,15 @@ class YouTubeAuth {
     startLocalAuthServer('youtube')
       .then(url => this.handleCallback(url))
       .catch(err => {
+        if (err instanceof AuthFlowSupersededError) {
+          log.info('YouTube OAuth flow superseded by a newer attempt')
+          return
+        }
         log.error('YouTube OAuth server error:', err)
         this.pending = null
         broadcaster.send(RENDERER_CHANNELS.AUTH_STATE_CHANGED, {
           platform: 'youtube',
-          state: { status: 'error', error: String(err) }
+          state: { status: 'error', error: err instanceof Error ? err.message : String(err) }
         })
       })
   }
@@ -102,9 +115,7 @@ class YouTubeAuth {
   }
 
   private async exchangeCode(code: string, codeVerifier: string, redirectUri: string): Promise<void> {
-    const settings = settingsStore.get()
-    const clientId = settings.googleClientId
-    const clientSecret = settings.googleClientSecret
+    const { clientId, clientSecret } = this.getCredentials()
 
     const body = new URLSearchParams({
       client_id: clientId,
@@ -166,9 +177,7 @@ class YouTubeAuth {
     const refreshToken = tokenStore.getRefreshToken('youtube')
     if (!refreshToken) return null
 
-    const settings = settingsStore.get()
-    const clientId = settings.googleClientId
-    const clientSecret = settings.googleClientSecret
+    const { clientId, clientSecret } = this.getCredentials()
 
     try {
       const body = new URLSearchParams({

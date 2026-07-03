@@ -67,7 +67,7 @@ export function useSevenTvCosmetics(
     })
 
     fetchSevenTvCosmetics(twitchUserId)
-    return unsub
+    return () => { unsub() }
   }, [twitchUserId, enabled])
 
   return enabled ? cosmetics : null

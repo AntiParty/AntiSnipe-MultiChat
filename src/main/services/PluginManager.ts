@@ -1,32 +1,10 @@
 import { app } from 'electron'
-import vm from 'vm'
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, watchFile, unwatchFile } from 'fs'
 import { join } from 'path'
 import log from 'electron-log'
+import { compilePlugin, runPlugin, type CompiledPlugin } from './pluginSandbox'
 import type { PluginMeta, PluginRecord, PluginMessage, PluginAction } from '../../shared/types/plugin'
 import type { NormalizedMessage } from '../../shared/types/message'
-
-type PluginFn = (msg: PluginMessage) => PluginAction | null
-
-// Safe sandbox: give plugins standard JS globals but no Node APIs
-const SANDBOX = vm.createContext({
-  Set, Map, Array, Object, RegExp, JSON, Math, Date, Number, String, Boolean,
-  parseInt, parseFloat, isNaN, isFinite, console: { log: () => {}, warn: () => {}, error: () => {} }
-})
-
-function compileFn(id: string, code: string): PluginFn | null {
-  try {
-    const src = code.replace(/\bexport\s+default\s+/g, '__EXPORT__ = ')
-    // Each plugin gets its own fresh context derived from the safe sandbox
-    const ctx = vm.createContext(Object.create(SANDBOX))
-    vm.runInContext(`var __EXPORT__=null;\n${src}`, ctx, { timeout: 500 })
-    const fn = ctx.__EXPORT__
-    return typeof fn === 'function' ? (fn as PluginFn) : null
-  } catch (err) {
-    log.warn(`PluginManager: compile error "${id}":`, err)
-    return null
-  }
-}
 
 function toPluginMessage(msg: NormalizedMessage): PluginMessage {
   const text = msg.parts.map(p =>
@@ -50,7 +28,7 @@ export class PluginManager {
   private pluginsDir: string
   private stateFile: string
   private records  = new Map<string, PluginRecord>()
-  private compiled = new Map<string, PluginFn>()
+  private compiled = new Map<string, CompiledPlugin>()
   private enabledState: Record<string, boolean> = {}  // id → enabled
   private changeCallbacks: Array<() => void> = []
 
@@ -129,11 +107,16 @@ export class PluginManager {
     // Compile in main process (vm module — no CSP)
     this.compiled.delete(id)
     if (!error && code) {
-      const fn = compileFn(id, code)
-      if (fn) {
-        this.compiled.set(id, fn)
-      } else {
-        error = error ?? 'Plugin did not export a default function'
+      try {
+        const compiled = compilePlugin(id, code)
+        if (compiled) {
+          this.compiled.set(id, compiled)
+        } else {
+          error = 'Plugin did not export a default function'
+        }
+      } catch (err) {
+        error = `Compile error: ${err instanceof Error ? err.message : String(err)}`
+        log.warn(`PluginManager: compile error "${id}":`, err)
       }
     }
 
@@ -151,13 +134,22 @@ export class PluginManager {
 
   /** Run all enabled plugins against a PluginMessage. Returns first action or null. */
   applyToPluginMessage(pmsg: PluginMessage): PluginAction | null {
-    for (const [id, fn] of this.compiled) {
+    for (const [id, compiled] of this.compiled) {
       const record = this.records.get(id)
       if (!record?.meta.enabled) continue
       try {
-        const action = fn(pmsg)
-        if (action != null) return action
-      } catch { /* plugin threw — skip */ }
+        const action = runPlugin(compiled, pmsg)
+        if (action) return action
+      } catch (err) {
+        // Runtime error or timeout: disable the plugin until it's edited or
+        // reloaded, and surface the error in the plugin UI instead of
+        // paying the cost (and hiding the bug) on every message.
+        this.compiled.delete(id)
+        const message = err instanceof Error ? err.message : String(err)
+        record.meta.error = `Runtime error (plugin disabled until reloaded): ${message}`
+        log.warn(`PluginManager: runtime error in "${id}":`, message)
+        this.changeCallbacks.forEach(cb => cb())
+      }
     }
     return null
   }
@@ -187,7 +179,13 @@ export class PluginManager {
 
   /** Create a new plugin file, start watching it, return updated list. */
   create(filename: string, code: string): PluginRecord[] {
-    const safe = filename.replace(/[^a-zA-Z0-9_-]/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '') || 'my-plugin'
+    let safe = filename.replace(/[^a-zA-Z0-9_-]/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '') || 'my-plugin'
+    // Never overwrite an existing plugin — uniquify the name instead
+    if (existsSync(join(this.pluginsDir, `${safe}.js`))) {
+      let n = 2
+      while (existsSync(join(this.pluginsDir, `${safe}-${n}.js`))) n++
+      safe = `${safe}-${n}`
+    }
     const filePath = join(this.pluginsDir, `${safe}.js`)
     writeFileSync(filePath, code, 'utf8')
     this.loadFile(filePath)

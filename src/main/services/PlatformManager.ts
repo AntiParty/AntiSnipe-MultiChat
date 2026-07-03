@@ -15,6 +15,7 @@ import { parseIrcLine } from './twitch/TwitchIrcParser'
 import { RENDERER_CHANNELS } from '../../shared/types/ipc'
 import { TWITCH_HELIX_BASE } from '../../shared/constants'
 import { pluginManager } from './PluginManager'
+import { getCurrentSong } from './media'
 import type { ConnectChannelPayload, ConnectionState } from '../../shared/types/channel'
 import type { NormalizedMessage, DeleteMessageEvent } from '../../shared/types/message'
 import type { ModActionPayload, ModActionType, UserCardPayload, UserCardData } from '../../shared/types/ipc'
@@ -79,38 +80,32 @@ class PlatformManager {
     const action = pluginManager.applyToMessage(msg)
     if (action?.type === 'hide') return
     if (action?.type === 'command') {
-      // Bot-style: plugin intercepts an incoming message and sends a response
-      let respond = action.respond
-      if (respond === '__song__') {
-        try {
-          const { execSync } = require('child_process') as typeof import('child_process')
-          if (process.platform === 'win32') {
-            const out = execSync(
-              'powershell -Command ' +
-              '"$ErrorActionPreference = \'SilentlyContinue\'; ' +
-              '$spotify = (Get-Process -Name Spotify -ErrorAction SilentlyContinue).MainWindowTitle; ' +
-              'if ($spotify) { $song = $spotify -replace \'^Spotify ?- ?\'; if ($song -ne \'\') { $song } }"',
-              { timeout: 3000, encoding: 'utf8' }
-            ).trim()
-            respond = out || '(nothing playing)'
-          } else {
-            respond = '(not supported on this OS)'
-          }
-        } catch {
-          respond = '(error fetching song)'
-        }
-      }
-      const settings = settingsStore.get()
-      if (settings.pluginMentionUsers) {
-        respond = `@${msg.authorDisplayName} ${respond}`
-      }
-      this.sendMessage(msg.channelId, respond).catch(err => log.error('Plugin command send failed:', err))
+      // Bot-style: plugin intercepts an incoming message and sends a response.
+      // Fire-and-forget so a slow lookup (e.g. !song) never delays message delivery.
+      this.respondToPluginCommand(msg, action.respond).catch(err =>
+        log.error('Plugin command send failed:', err)
+      )
       // Fall through — still show the original message in chat
     } else if (action) {
       // highlight / tag / replace — bake into message for renderer
       msg.pluginAction = action
     }
     broadcaster.enqueue(msg)
+  }
+
+  private async respondToPluginCommand(msg: NormalizedMessage, respond: string): Promise<void> {
+    if (respond === '__song__') {
+      if (process.platform === 'win32') {
+        respond = (await getCurrentSong()) || '(nothing playing)'
+      } else {
+        respond = '(not supported on this OS)'
+      }
+    }
+    const settings = settingsStore.get()
+    if (settings.pluginMentionUsers) {
+      respond = `@${msg.authorDisplayName} ${respond}`
+    }
+    await this.sendMessage(msg.channelId, respond)
   }
 
   private handleDelete(event: DeleteMessageEvent): void {

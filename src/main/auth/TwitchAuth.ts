@@ -4,7 +4,7 @@ import log from 'electron-log'
 import { settingsStore } from '../store/SettingsStore'
 import { tokenStore } from './TokenStore'
 import { broadcaster } from '../ipc/broadcaster'
-import { startLocalAuthServer, TWITCH_REDIRECT_URI } from './LocalAuthServer'
+import { startLocalAuthServer, AuthFlowSupersededError, TWITCH_REDIRECT_URI } from './LocalAuthServer'
 import { RENDERER_CHANNELS } from '../../shared/types/ipc'
 import { TWITCH_AUTH_BASE, TWITCH_HELIX_BASE } from '../../shared/constants'
 
@@ -15,16 +15,25 @@ interface PendingAuth {
 class TwitchAuth {
   private pending: PendingAuth | null = null
 
-  async startFlow(): Promise<void> {
+  /** Client ID/secret with pasted whitespace stripped — a trailing newline breaks the token exchange. */
+  private getCredentials(): { clientId: string; clientSecret: string } {
     const settings = settingsStore.get()
-    const clientId = settings.twitchClientId
-    const clientSecret = settings.twitchClientSecret
+    return {
+      clientId: (settings.twitchClientId ?? '').trim(),
+      clientSecret: (settings.twitchClientSecret ?? '').trim()
+    }
+  }
+
+  async startFlow(): Promise<void> {
+    const { clientId, clientSecret } = this.getCredentials()
 
     if (!clientId || !clientSecret) {
-      broadcaster.send(RENDERER_CHANNELS.PLATFORM_ERROR, {
-        channelId: '',
-        code: 'NO_CREDENTIALS',
-        message: 'Enter both Client ID and Client Secret in Settings → Auth before connecting.'
+      broadcaster.send(RENDERER_CHANNELS.AUTH_STATE_CHANGED, {
+        platform: 'twitch',
+        state: {
+          status: 'error',
+          error: 'Enter both Client ID and Client Secret in Settings → Auth before connecting.'
+        }
       })
       return
     }
@@ -46,11 +55,15 @@ class TwitchAuth {
     startLocalAuthServer('twitch')
       .then(url => this.handleCallback(url))
       .catch(err => {
+        if (err instanceof AuthFlowSupersededError) {
+          log.info('Twitch OAuth flow superseded by a newer attempt')
+          return
+        }
         log.error('Twitch OAuth server error:', err)
         this.pending = null
         broadcaster.send(RENDERER_CHANNELS.AUTH_STATE_CHANGED, {
           platform: 'twitch',
-          state: { status: 'error', error: String(err) }
+          state: { status: 'error', error: err instanceof Error ? err.message : String(err) }
         })
       })
   }
@@ -88,8 +101,7 @@ class TwitchAuth {
   }
 
   private async exchangeCode(code: string): Promise<void> {
-    const settings = settingsStore.get()
-    const { twitchClientId: clientId, twitchClientSecret: clientSecret } = settings
+    const { clientId, clientSecret } = this.getCredentials()
 
     const body = new URLSearchParams({
       client_id: clientId,
@@ -150,8 +162,7 @@ class TwitchAuth {
     const refreshToken = tokenStore.getRefreshToken('twitch')
     if (!refreshToken) return null
 
-    const settings = settingsStore.get()
-    const { twitchClientId: clientId, twitchClientSecret: clientSecret } = settings
+    const { clientId, clientSecret } = this.getCredentials()
 
     try {
       const body = new URLSearchParams({

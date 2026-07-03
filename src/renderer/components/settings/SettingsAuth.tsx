@@ -1,14 +1,62 @@
+import { useEffect, useState } from 'react'
 import { useStore } from '../../store'
 import { useSettings } from '../../hooks/useSettings'
 import Button from '../ui/Button'
 import Input from '../ui/Input'
 
+function AuthFlowStatus({ pending, error }: { pending: boolean; error?: string }) {
+  if (pending) {
+    return (
+      <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+        Waiting for authorization in your browser… complete the login there, then come back.
+      </p>
+    )
+  }
+  if (error) {
+    return (
+      <p
+        style={{
+          padding: '8px 10px',
+          fontSize: '12px',
+          lineHeight: 1.5,
+          color: 'var(--danger, #ef4444)',
+          background: 'var(--surface-2)',
+          border: '1px solid var(--danger, #ef4444)'
+        }}
+      >
+        Sign-in failed: {error}
+      </p>
+    )
+  }
+  return null
+}
+
 export default function SettingsAuth() {
   const auth = useStore(s => s.auth)
   const { settings, save } = useSettings()
+  const [pending, setPending] = useState<{ twitch: boolean; youtube: boolean }>({
+    twitch: false,
+    youtube: false
+  })
 
-  const handleTwitchLogin = () => window.chatBridge.invoke('auth:twitch:start')
-  const handleYouTubeLogin = () => window.chatBridge.invoke('auth:youtube:start')
+  // Clear the "waiting for browser" indicator once the flow settles either way.
+  // Keyed on object identity: every AUTH_STATE_CHANGED replaces the state object,
+  // even when the new status/error text matches the previous one.
+  useEffect(() => {
+    setPending(p => (p.twitch ? { ...p, twitch: false } : p))
+  }, [auth.twitch])
+  useEffect(() => {
+    setPending(p => (p.youtube ? { ...p, youtube: false } : p))
+  }, [auth.youtube])
+
+  const handleTwitchLogin = () => {
+    setPending(p => ({ ...p, twitch: true }))
+    window.chatBridge.invoke('auth:twitch:start')
+  }
+  const handleYouTubeLogin = () => {
+    setPending(p => ({ ...p, youtube: true }))
+    window.chatBridge.invoke('auth:youtube:start')
+  }
   const handleTwitchLogout = () => window.chatBridge.invoke('auth:logout', { platform: 'twitch' })
   const handleYouTubeLogout = () => window.chatBridge.invoke('auth:logout', { platform: 'youtube' })
 
@@ -74,14 +122,20 @@ export default function SettingsAuth() {
               </Button>
             </div>
           ) : (
-            <Button
-              variant="primary"
-              onClick={handleTwitchLogin}
-              disabled={!settings.twitchClientId || !settings.twitchClientSecret}
-              style={{ background: 'var(--twitch)' }}
-            >
-              Connect with Twitch
-            </Button>
+            <>
+              <Button
+                variant="primary"
+                onClick={handleTwitchLogin}
+                disabled={!settings.twitchClientId.trim() || !settings.twitchClientSecret.trim() || pending.twitch}
+                style={{ background: 'var(--twitch)' }}
+              >
+                {pending.twitch ? 'Waiting for browser…' : 'Connect with Twitch'}
+              </Button>
+              <AuthFlowStatus
+                pending={pending.twitch}
+                error={auth.twitch.status === 'error' ? auth.twitch.error : undefined}
+              />
+            </>
           )}
         </div>
       </section>
@@ -156,14 +210,20 @@ export default function SettingsAuth() {
               </Button>
             </div>
           ) : (
-            <Button
-              variant="primary"
-              onClick={handleYouTubeLogin}
-              disabled={!settings.googleClientId}
-              style={{ background: '#cc0000' }}
-            >
-              Connect with YouTube
-            </Button>
+            <>
+              <Button
+                variant="primary"
+                onClick={handleYouTubeLogin}
+                disabled={!settings.googleClientId.trim() || pending.youtube}
+                style={{ background: '#cc0000' }}
+              >
+                {pending.youtube ? 'Waiting for browser…' : 'Connect with YouTube'}
+              </Button>
+              <AuthFlowStatus
+                pending={pending.youtube}
+                error={auth.youtube.status === 'error' ? auth.youtube.error : undefined}
+              />
+            </>
           )}
         </div>
       </section>

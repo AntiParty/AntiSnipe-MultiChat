@@ -5,6 +5,7 @@ import { MAIN_CHANNELS, RENDERER_CHANNELS } from '../../shared/types/ipc'
 import { broadcaster } from './broadcaster'
 import { settingsStore } from '../store/SettingsStore'
 import { platformManager } from '../services/PlatformManager'
+import { getCurrentSong } from '../services/media'
 import { emoteCacheManager } from '../emotes/EmoteCacheManager'
 import { pluginManager } from '../services/PluginManager'
 import { autoUpdaterManager } from '../updater/AutoUpdater'
@@ -105,24 +106,7 @@ export function registerIpcHandlers(): void {
   })
 
   // Media info (Windows: Spotify window title; cross-platform fallback = empty)
-  ipcMain.handle(MAIN_CHANNELS.MEDIA_GET_CURRENT, () => {
-    try {
-      const { execSync } = require('child_process') as typeof import('child_process')
-      if (process.platform === 'win32') {
-        const out = execSync(
-          'powershell -Command ' +
-          '"$ErrorActionPreference = \'SilentlyContinue\'; ' +
-          '$spotify = (Get-Process -Name Spotify -ErrorAction SilentlyContinue).MainWindowTitle; ' +
-          'if ($spotify) { $song = $spotify -replace \'^Spotify ?- ?\'; if ($song -ne \'\') { $song } }"',
-          { timeout: 3000, encoding: 'utf8' }
-        ).trim()
-        return out || ''
-      }
-      return ''
-    } catch {
-      return ''
-    }
-  })
+  ipcMain.handle(MAIN_CHANNELS.MEDIA_GET_CURRENT, () => getCurrentSong())
 
   // Plugins
   ipcMain.handle(MAIN_CHANNELS.PLUGIN_APPLY, (_e, pmsg) => {
