@@ -6,7 +6,7 @@
  * The window itself handles positioning and OS-native dragging via the
  * `-webkit-app-region: drag` title bar — no custom JS drag needed.
  */
-import { useState, useEffect, useRef, useLayoutEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Clock, Shield, Ban, ExternalLink } from 'lucide-react'
 import type { UserCardData } from '@shared/types/ipc'
 import type { NormalizedMessage } from '@shared/types/message'
@@ -41,7 +41,6 @@ export default function UserCardApp() {
   const [data, setData] = useState<UserCardData | null | 'loading'>('loading')
   const [recentMessages, setRecentMessages] = useState<NormalizedMessage[]>([])
   const [isMod, setIsMod] = useState(false)
-  const msgsScrollRef = useRef<HTMLDivElement>(null)
 
   // Apply theme from settings so the card matches the main window
   useEffect(() => {
@@ -66,13 +65,6 @@ export default function UserCardApp() {
       .then(d => setData(d as UserCardData | null))
       .catch(() => setData(null))
 
-    // Fetch recent messages for this user from the main process history.
-    // (chat:getRecentMessages is consume-on-read and already drained by the
-    // main window at startup — it always returned [] here.)
-    window.chatBridge.invoke('chat:getUserMessages', { channelId: CHANNEL_ID, login: LOGIN })
-      .then(msgs => setRecentMessages(msgs as NormalizedMessage[]))
-      .catch(() => {})
-
     // Mod status
     window.chatBridge.invoke('mod:getSelfStatuses')
       .then(statuses => {
@@ -80,14 +72,18 @@ export default function UserCardApp() {
         setIsMod(s[CHANNEL_ID] ?? false)
       })
       .catch(() => {})
-  }, [])
 
-  // Scroll messages to bottom (newest last)
-  useLayoutEffect(() => {
-    if (msgsScrollRef.current) {
-      msgsScrollRef.current.scrollTop = msgsScrollRef.current.scrollHeight
+    // Recent messages for this user from the main-process history, newest
+    // first, polled so the card live-updates while it's open
+    const fetchMessages = () => {
+      window.chatBridge.invoke('chat:getUserMessages', { channelId: CHANNEL_ID, login: LOGIN })
+        .then(msgs => setRecentMessages([...(msgs as NormalizedMessage[])].reverse()))
+        .catch(() => {})
     }
-  }, [recentMessages.length])
+    fetchMessages()
+    const msgTimer = setInterval(fetchMessages, 2000)
+    return () => clearInterval(msgTimer)
+  }, [])
 
   const close = (): void => {
     window.chatBridge.invoke('window:close')
@@ -220,7 +216,7 @@ export default function UserCardApp() {
               Recent messages ({recentMessages.length})
             </div>
           </div>
-          <div ref={msgsScrollRef} style={{ overflowY: 'auto', flex: 1, minHeight: 60 }}>
+          <div style={{ overflowY: 'auto', flex: 1, minHeight: 60 }}>
             {recentMessages.length === 0 ? (
               <div style={{ padding: '10px 12px', fontSize: '11px', color: 'var(--text-muted)' }}>No messages in view</div>
             ) : (
