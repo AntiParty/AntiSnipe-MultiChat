@@ -327,10 +327,13 @@
   min-width: 52px;
 }
 
-/* Timeout preset menu for left-side buttons — opens to the right */
+/* Timeout/pin preset menu for left-side buttons — opens to the right.
+   Anchored to the button's bottom and grows UPWARD: the newest messages sit
+   at the bottom of the scroll container, where a downward menu gets clipped
+   by the container edge. */
 .timeoutMenuLeft {
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: calc(100% + 4px);
   background: var(--surface-2);
   border: 1px solid var(--border);
