@@ -94,13 +94,16 @@ export function buildSelfMessage(
   mentionKeywords: string[],
   keywordAlerts: string[],
   badgeTag = '',
-  broadcasterId?: string
+  broadcasterId?: string,
+  realMessageId?: string
 ): NormalizedMessage {
   const parts = tokenizeText(text, channelId, mentionKeywords)
   const rawLower = text.toLowerCase()
   const badges = twitchBadgeResolver.resolve(badgeTag, broadcasterId)
   return {
-    id: `self-${Date.now()}-${Math.random()}`,
+    // A Helix-assigned ID makes the row fully actionable (delete/pin);
+    // 'self-…' marks a purely optimistic row
+    id: realMessageId ?? `self-${Date.now()}-${Math.random()}`,
     platform: 'twitch',
     channelId,
     channelDisplayName,

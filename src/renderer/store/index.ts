@@ -97,11 +97,12 @@ function buildChatSlice(set: SetState): ChatSlice {
             let replaced = false
             if (bucket) {
               for (let i = bucket.length - 1; i >= 0 && i >= bucket.length - 20; i--) {
-                if (
+                const sameId = bucket[i].id === msg.id
+                const sameOptimistic =
                   bucket[i].id.startsWith('self-') &&
                   bucket[i].raw === msg.raw &&
                   bucket[i].authorName.toLowerCase() === msg.authorName.toLowerCase()
-                ) {
+                if (sameId || sameOptimistic) {
                   bucket[i] = msg
                   replaced = true
                   break

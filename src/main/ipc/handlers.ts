@@ -152,6 +152,10 @@ export function registerIpcHandlers(): void {
     return platformManager.getRecentMessages(payload.channelId)
   })
 
+  ipcMain.handle(MAIN_CHANNELS.GET_USER_MESSAGES, (_e, payload: { channelId: string; login: string }) => {
+    return platformManager.getUserMessages(payload.channelId, payload.login)
+  })
+
   ipcMain.handle(MAIN_CHANNELS.GET_USER_CARD, (_e, payload: UserCardPayload) => {
     return platformManager.getUserCard(payload)
   })

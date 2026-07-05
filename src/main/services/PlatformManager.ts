@@ -29,9 +29,14 @@ const REMOVED_IRC_COMMANDS: Record<string, ModActionType | 'unban'> = {
   '/untimeout':'unban'
 }
 
+// Rolling per-channel history kept in the main process so secondary windows
+// (user card) can query messages without access to the renderer store.
+const HISTORY_LIMIT = 500
+
 class PlatformManager {
   private connectionStates = new Map<string, ConnectionState>()
   private recentMessageCache = new Map<string, NormalizedMessage[]>()
+  private messageHistory = new Map<string, NormalizedMessage[]>()
   private twitchService: TwitchService
   private kickService: KickService
   private tiktokService: TikTokService
@@ -97,7 +102,25 @@ class PlatformManager {
       // highlight / tag / replace — bake into message for renderer
       msg.pluginAction = action
     }
+    this.recordHistory(msg)
     broadcaster.enqueue(msg)
+  }
+
+  private recordHistory(msg: NormalizedMessage): void {
+    let arr = this.messageHistory.get(msg.channelId)
+    if (!arr) {
+      arr = []
+      this.messageHistory.set(msg.channelId, arr)
+    }
+    arr.push(msg)
+    if (arr.length > HISTORY_LIMIT) arr.splice(0, arr.length - HISTORY_LIMIT)
+  }
+
+  /** Recent messages by a specific user (for the user card window). */
+  getUserMessages(channelId: string, login: string): NormalizedMessage[] {
+    const arr = this.messageHistory.get(channelId) ?? []
+    const lower = login.toLowerCase()
+    return arr.filter(m => m.authorName.toLowerCase() === lower && !m.isDeleted).slice(-30)
   }
 
   /** True when the channel belongs to the signed-in account (their own chat). */
@@ -275,9 +298,27 @@ class PlatformManager {
         return
       }
 
-      this.twitchService.sendMessage(channelId, text)
-      if (pinAfterSend) this.twitchService.queuePinOnEcho(text)
-      // Optimistic injection — show the message immediately without waiting for IRC echo
+      // Prefer Helix (returns the real message ID, enabling delete/pin on own
+      // messages); fall back to IRC when the token lacks user:write:chat
+      let helixId: string | null = null
+      try {
+        helixId = await this.twitchService.sendMessageHelix(channelId, text)
+      } catch (err) {
+        // Actively dropped (AutoMod etc.) — do NOT fall back, that would double-send
+        this.sendSystemMessage(channelId, channel.displayName, `⚠ Message not sent: ${err instanceof Error ? err.message : err}`)
+        return
+      }
+      if (!helixId) {
+        this.twitchService.sendMessage(channelId, text)
+        if (pinAfterSend) this.twitchService.queuePinOnEcho(text)
+      } else if (pinAfterSend) {
+        this.pinMessage(channelId, helixId).catch(err =>
+          this.sendSystemMessage(channelId, channel.displayName, `⚠ Could not pin message: ${err instanceof Error ? err.message : err}`)
+        )
+      }
+
+      // Optimistic injection — show the message immediately. With a Helix ID
+      // the row is fully functional (delete/pin) right away.
       const { username, userId } = tokenStore.getUserInfo('twitch')
       if (username && userId) {
         const selfMsg = buildSelfMessage(
@@ -289,8 +330,10 @@ class PlatformManager {
           settings.mentionKeywords,
           settings.keywordAlerts,
           this.twitchService.getSelfBadgeTag(channelId),
-          this.twitchService.getBroadcasterId(channelId)
+          this.twitchService.getBroadcasterId(channelId),
+          helixId ?? undefined
         )
+        this.recordHistory(selfMsg)
         broadcaster.enqueue(selfMsg)
       }
     } else if (channel.platform === 'youtube') {
@@ -468,6 +511,8 @@ class PlatformManager {
         } catch { /* skip malformed line */ }
       }
       if (msgs.length > 0) {
+        // Seed the rolling history so the user card sees pre-connect messages
+        for (const m of msgs) this.recordHistory(m)
         // Cache for renderer pull (handles startup race condition)
         this.recentMessageCache.set(channelId, msgs)
         // Also try to push directly if renderer is already listening

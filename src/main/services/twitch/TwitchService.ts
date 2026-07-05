@@ -134,6 +134,53 @@ export class TwitchService {
     }
   }
 
+  /** Send via Helix chat/messages — unlike IRC, the response carries the real
+   *  message ID (Twitch never echoes your own IRC messages back). Returns the
+   *  ID, or null when Helix can't be used (e.g. token lacks user:write:chat)
+   *  so the caller can fall back to IRC. Throws when the message was
+   *  actively dropped (AutoMod etc.) — falling back would double-send. */
+  async sendMessageHelix(channelId: string, text: string): Promise<string | null> {
+    const handle = this.channels.get(channelId)
+    if (!handle?.broadcasterId) return null
+    let accessToken = tokenStore.getAccessToken('twitch')
+    if (!accessToken) accessToken = await twitchAuth.refreshAccessToken()
+    const { twitchClientId: clientId } = settingsStore.get()
+    const { userId } = tokenStore.getUserInfo('twitch')
+    if (!accessToken || !clientId || !userId) return null
+
+    const resp = await net.fetch(`${TWITCH_HELIX_BASE}/chat/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Client-Id': clientId,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        broadcaster_id: handle.broadcasterId,
+        sender_id: userId,
+        message: text
+      })
+    })
+    if (!resp.ok) {
+      // Missing scope / rate limit / transient — message NOT sent, IRC fallback is safe
+      log.info(`Helix send unavailable (${resp.status}) — falling back to IRC`)
+      return null
+    }
+    const data = await resp.json() as {
+      data?: Array<{ message_id?: string; is_sent?: boolean; drop_reason?: { message?: string } }>
+    }
+    const item = data.data?.[0]
+    if (!item?.is_sent) {
+      throw new Error(item?.drop_reason?.message || 'Message was dropped by Twitch')
+    }
+    // If Twitch also delivers this message over IRC, treat it as a self echo
+    const { username } = tokenStore.getUserInfo('twitch')
+    if (username) {
+      this.selfMessageKeys.set(`${username.toLowerCase()}:${text}`, Date.now())
+    }
+    return item.message_id ?? null
+  }
+
   sendMessage(channelId: string, text: string): void {
     const handle = this.channels.get(channelId)
     if (!handle) throw new Error(`Channel ${channelId} not connected`)

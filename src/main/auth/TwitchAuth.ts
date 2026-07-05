@@ -45,7 +45,7 @@ class TwitchAuth {
       client_id: clientId,
       redirect_uri: TWITCH_REDIRECT_URI,
       response_type: 'code',
-      scope: 'chat:read chat:edit user:read:email moderator:manage:banned_users moderator:manage:chat_messages moderator:read:followers moderator:read:chatters channel:read:subscriptions channel:read:redemptions',
+      scope: 'chat:read chat:edit user:write:chat user:read:email moderator:manage:banned_users moderator:manage:chat_messages moderator:read:followers moderator:read:chatters channel:read:subscriptions channel:read:redemptions',
       state
     })
 

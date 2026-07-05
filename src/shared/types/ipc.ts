@@ -34,6 +34,7 @@ export const MAIN_CHANNELS = {
   GET_STREAM_INFO: 'streams:info',
   GET_VIEWER_LIST: 'viewers:getList',
   GET_RECENT_MESSAGES: 'chat:getRecentMessages',
+  GET_USER_MESSAGES: 'chat:getUserMessages',
   GET_USER_CARD: 'twitch:getUserCard',
   GET_PINNED_MESSAGE: 'twitch:getPinnedMessage',
   PIN_MESSAGE: 'twitch:pinMessage',
@@ -259,6 +260,7 @@ export interface ChatBridgeInvokeMap {
   [MAIN_CHANNELS.GET_STREAM_INFO]: [undefined, Record<string, StreamInfo>]
   [MAIN_CHANNELS.GET_VIEWER_LIST]: [GetViewerListPayload, ViewerListPayload | null]
   [MAIN_CHANNELS.GET_RECENT_MESSAGES]: [{ channelId: string }, NormalizedMessage[]]
+  [MAIN_CHANNELS.GET_USER_MESSAGES]: [{ channelId: string; login: string }, NormalizedMessage[]]
   [MAIN_CHANNELS.GET_USER_CARD]: [UserCardPayload, UserCardData | null]
   [MAIN_CHANNELS.GET_PINNED_MESSAGE]: [{ channelId: string }, PinnedMessage | null]
   [MAIN_CHANNELS.PIN_MESSAGE]: [PinMessagePayload, void]

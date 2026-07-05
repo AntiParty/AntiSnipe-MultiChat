@@ -66,13 +66,11 @@ export default function UserCardApp() {
       .then(d => setData(d as UserCardData | null))
       .catch(() => setData(null))
 
-    // Fetch recent messages for this user
-    window.chatBridge.invoke('chat:getRecentMessages', { channelId: CHANNEL_ID })
-      .then(msgs => {
-        const all = msgs as NormalizedMessage[]
-        const filtered = all.filter(m => m.authorName === LOGIN && !m.isDeleted)
-        setRecentMessages(filtered.slice(-30))
-      })
+    // Fetch recent messages for this user from the main process history.
+    // (chat:getRecentMessages is consume-on-read and already drained by the
+    // main window at startup — it always returned [] here.)
+    window.chatBridge.invoke('chat:getUserMessages', { channelId: CHANNEL_ID, login: LOGIN })
+      .then(msgs => setRecentMessages(msgs as NormalizedMessage[]))
       .catch(() => {})
 
     // Mod status
