@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react'
-import { ArrowDown, Search, X as XIcon } from 'lucide-react'
+import { ArrowDown, Pin, Search, X as XIcon } from 'lucide-react'
+import { MAIN_CHANNELS } from '@shared/types/ipc'
 import { useStore } from '../../store'
 import { useActiveMessages } from '../../hooks/useChat'
 import MessageRow from './MessageRow'
@@ -23,6 +24,9 @@ export default function ChatPane() {
   const messages = useActiveMessages()
   const activeChannelId = useStore(s => s.activeChannelId)
   const channels = useStore(s => s.channels)
+  const pinned = useStore(s => s.pinnedByChannel[s.activeChannelId] ?? null)
+  const setPinnedMessage = useStore(s => s.setPinnedMessage)
+  const isModHere = useStore(s => s.selfModByChannel[s.activeChannelId] ?? false)
   const pauseScrollOnHover = useStore(s => s.settings.pauseScrollOnHover)
   const smoothScroll = useStore(s => s.settings.smoothScroll)
   const messageSpacing = useStore(s => s.settings.messageSpacing)
@@ -48,6 +52,34 @@ export default function ChatPane() {
     setSearchQuery('')
     setSearchOpen(false)
   }, [])
+
+  // Poll the pinned message for the active Twitch channel (mods only — the
+  // Helix pins endpoint 403s for non-moderators)
+  const activeChannel0 = channels.find(c => c.id === activeChannelId)
+  const canSeePins = isModHere && activeChannel0?.platform === 'twitch'
+  useEffect(() => {
+    if (!canSeePins) return
+    const channelId = activeChannelId
+    const fetchPinned = () => {
+      window.chatBridge.invoke(MAIN_CHANNELS.GET_PINNED_MESSAGE, { channelId })
+        .then(pin => setPinnedMessage(channelId, pin))
+        .catch(() => {})
+    }
+    fetchPinned()
+    const t = setInterval(fetchPinned, 60_000)
+    return () => clearInterval(t)
+  }, [activeChannelId, canSeePins, setPinnedMessage])
+
+  const handleUnpin = useCallback(() => {
+    if (!pinned) return
+    const channelId = activeChannelId
+    window.chatBridge.invoke(MAIN_CHANNELS.UNPIN_MESSAGE, { channelId, messageId: pinned.messageId })
+      .then(() => setPinnedMessage(channelId, null))
+      .catch(err => console.error('Unpin failed:', err))
+  }, [pinned, activeChannelId, setPinnedMessage])
+
+  // Hide the banner client-side once a timed pin expires
+  const pinExpired = !!pinned?.endsAt && Date.parse(pinned.endsAt) < Date.now()
 
   // Search the FULL message buffer (not just the rendered window), then cap
   // what's actually mounted in the DOM to the most recent RENDER_LIMIT rows.
@@ -163,6 +195,47 @@ export default function ChatPane() {
           >
             <XIcon size={12} />
           </button>
+        </div>
+      )}
+
+      {/* Pinned message banner */}
+      {pinned && !pinExpired && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '7px',
+          padding: '5px 10px',
+          background: 'rgba(169, 112, 255, 0.10)',
+          borderBottom: '1px solid rgba(169, 112, 255, 0.35)',
+          flexShrink: 0
+        }}>
+          <Pin size={11} style={{ color: '#a970ff', flexShrink: 0, marginTop: '2px' }} />
+          <div style={{ flex: 1, minWidth: 0, fontSize: '11px', lineHeight: 1.45 }}>
+            <span style={{ color: 'var(--text-muted)' }}>
+              Pinned by {pinned.pinnedByName} ·{' '}
+            </span>
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+              {pinned.senderName}:{' '}
+            </span>
+            <span style={{ color: 'var(--text-secondary)', wordBreak: 'break-word' }}>
+              {pinned.text}
+            </span>
+          </div>
+          {isModHere && (
+            <button
+              onClick={handleUnpin}
+              title="Unpin message"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--text-muted)', padding: '2px', flexShrink: 0
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--danger)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)' }}
+            >
+              <XIcon size={11} />
+            </button>
+          )}
         </div>
       )}
 

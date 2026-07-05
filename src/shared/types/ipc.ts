@@ -35,6 +35,9 @@ export const MAIN_CHANNELS = {
   GET_VIEWER_LIST: 'viewers:getList',
   GET_RECENT_MESSAGES: 'chat:getRecentMessages',
   GET_USER_CARD: 'twitch:getUserCard',
+  GET_PINNED_MESSAGE: 'twitch:getPinnedMessage',
+  PIN_MESSAGE: 'twitch:pinMessage',
+  UNPIN_MESSAGE: 'twitch:unpinMessage',
   OPEN_USER_CARD_WINDOW: 'usercard:openWindow',
   FETCH_7TV_COSMETICS: '7tv:fetchCosmetics',
   SHELL_OPEN_EXTERNAL: 'shell:openExternal',
@@ -169,6 +172,28 @@ export interface UserCardPayload {
   login: string
 }
 
+/** A mod-pinned chat message (Helix chat/pins). */
+export interface PinnedMessage {
+  messageId: string
+  senderLogin: string
+  senderName: string
+  pinnedByName: string
+  text: string
+  endsAt: string | null   // RFC3339; null = pinned until stream ends
+}
+
+export interface PinMessagePayload {
+  channelId: string
+  messageId: string
+  /** 30–1800 seconds; omit to pin until the stream ends. */
+  durationSeconds?: number
+}
+
+export interface UnpinMessagePayload {
+  channelId: string
+  messageId: string
+}
+
 export interface SevenTvCosmeticsPayload {
   twitchUserId: string
 }
@@ -234,6 +259,9 @@ export interface ChatBridgeInvokeMap {
   [MAIN_CHANNELS.GET_VIEWER_LIST]: [GetViewerListPayload, ViewerListPayload | null]
   [MAIN_CHANNELS.GET_RECENT_MESSAGES]: [{ channelId: string }, NormalizedMessage[]]
   [MAIN_CHANNELS.GET_USER_CARD]: [UserCardPayload, UserCardData | null]
+  [MAIN_CHANNELS.GET_PINNED_MESSAGE]: [{ channelId: string }, PinnedMessage | null]
+  [MAIN_CHANNELS.PIN_MESSAGE]: [PinMessagePayload, void]
+  [MAIN_CHANNELS.UNPIN_MESSAGE]: [UnpinMessagePayload, void]
   [MAIN_CHANNELS.OPEN_USER_CARD_WINDOW]: [UserCardPayload, void]
   [MAIN_CHANNELS.FETCH_7TV_COSMETICS]: [SevenTvCosmeticsPayload, SevenTvCosmeticsResult]
   [MAIN_CHANNELS.SHELL_OPEN_EXTERNAL]: [ShellOpenPayload, void]

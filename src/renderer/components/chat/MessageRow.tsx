@@ -1,6 +1,6 @@
 import { memo, useState, useCallback } from 'react'
 import { clsx } from 'clsx'
-import { Trash2, Ban, ShieldOff } from 'lucide-react'
+import { Trash2, Ban, Pin, ShieldOff } from 'lucide-react'
 import MessageContent from './MessageContent'
 import { PlatformLogo } from '../ui/PlatformLogos'
 import styles from '../../styles/chat.module.css'
@@ -105,6 +105,22 @@ function MessageRow({ message, index }: MessageRowProps) {
     message.replyTo.userLogin?.toLowerCase() === loggedInUsername.toLowerCase()
 
   const [timeoutOpen, setTimeoutOpen] = useState(false)
+  const setPinnedMessage = useStore(s => s.setPinnedMessage)
+
+  const handlePin = useCallback(async () => {
+    try {
+      await window.chatBridge.invoke('twitch:pinMessage', {
+        channelId: message.channelId,
+        messageId: message.id
+      })
+      const pin = await window.chatBridge.invoke('twitch:getPinnedMessage', {
+        channelId: message.channelId
+      })
+      setPinnedMessage(message.channelId, pin)
+    } catch (err) {
+      console.error('Pin failed:', err)
+    }
+  }, [message.channelId, message.id, setPinnedMessage])
 
   const { messageType, isHighlighted, isMention, isAction, isDeleted, raw } = message
 
@@ -247,6 +263,16 @@ function MessageRow({ message, index }: MessageRowProps) {
                 onClick={e => { e.stopPropagation(); fireModAction('delete') }}
               >
                 <Trash2 size={10} />
+              </button>
+            )}
+
+            {message.platform === 'twitch' && !isDeleted && (
+              <button
+                className={styles.modBtn}
+                title="Pin message (until stream ends)"
+                onClick={e => { e.stopPropagation(); handlePin() }}
+              >
+                <Pin size={10} />
               </button>
             )}
 

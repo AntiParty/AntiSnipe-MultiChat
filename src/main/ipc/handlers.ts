@@ -23,6 +23,8 @@ import type {
   CreatePluginPayload,
   TogglePluginPayload,
   UserCardPayload,
+  PinMessagePayload,
+  UnpinMessagePayload,
   SevenTvCosmeticsPayload,
   SevenTvCosmeticsResult,
   GetViewerListPayload
@@ -152,6 +154,24 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(MAIN_CHANNELS.GET_USER_CARD, (_e, payload: UserCardPayload) => {
     return platformManager.getUserCard(payload)
+  })
+
+  // Twitch pinned messages
+  ipcMain.handle(MAIN_CHANNELS.GET_PINNED_MESSAGE, async (_e, payload: { channelId: string }) => {
+    try {
+      return await platformManager.getPinnedMessage(payload.channelId)
+    } catch (err) {
+      log.warn('getPinnedMessage failed:', err)
+      return null
+    }
+  })
+
+  ipcMain.handle(MAIN_CHANNELS.PIN_MESSAGE, async (_e, payload: PinMessagePayload) => {
+    await platformManager.pinMessage(payload.channelId, payload.messageId, payload.durationSeconds)
+  })
+
+  ipcMain.handle(MAIN_CHANNELS.UNPIN_MESSAGE, async (_e, payload: UnpinMessagePayload) => {
+    await platformManager.unpinMessage(payload.channelId, payload.messageId)
   })
 
   ipcMain.handle(MAIN_CHANNELS.GET_VIEWER_LIST, (_e, payload: GetViewerListPayload) => {

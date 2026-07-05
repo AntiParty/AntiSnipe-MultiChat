@@ -84,6 +84,7 @@ function buildChatSlice(set: SetState): ChatSlice {
     unreadCounts: {},
     viewerCountsByChannel: {},
     streamInfoByChannel: {},
+    pinnedByChannel: {},
     addMessages: messages =>
       set(state => {
         for (const msg of messages) {
@@ -188,6 +189,8 @@ function buildChatSlice(set: SetState): ChatSlice {
       set(state => { state.viewerCountsByChannel = counts }),
     setStreamInfo: info =>
       set(state => { state.streamInfoByChannel = info }),
+    setPinnedMessage: (channelId, pinned) =>
+      set(state => { state.pinnedByChannel[channelId] = pinned }),
     prependMessages: (channelId, messages) =>
       set(state => {
         const existing = state.messagesByChannel[channelId] ?? []

@@ -27,7 +27,7 @@ import {
 } from '../../../shared/constants'
 import type { NormalizedMessage, DeleteMessageEvent } from '../../../shared/types/message'
 import type { ConnectionStatus } from '../../../shared/types/channel'
-import type { ModActionType } from '../../../shared/types/ipc'
+import type { ModActionType, PinnedMessage } from '../../../shared/types/ipc'
 
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds}s`
@@ -548,6 +548,82 @@ export class TwitchService {
         const text = await resp.text()
         throw new Error(`Unban failed: ${resp.status} ${text}`)
       }
+    }
+  }
+
+  /** Shared auth/ids preamble for Helix chat/pins calls. Throws with a
+   *  user-readable message when anything is missing. */
+  private async pinRequestContext(channelId: string): Promise<{
+    url: (params: Record<string, string>) => string
+    headers: Record<string, string>
+  }> {
+    const handle = this.channels.get(channelId)
+    if (!handle?.broadcasterId) throw new Error('No broadcaster ID for channel')
+
+    let accessToken = tokenStore.getAccessToken('twitch')
+    if (!accessToken) accessToken = await twitchAuth.refreshAccessToken()
+    if (!accessToken) throw new Error('Not authenticated — token expired and refresh failed')
+
+    const { twitchClientId: clientId } = settingsStore.get()
+    const { userId: moderatorId } = tokenStore.getUserInfo('twitch')
+    if (!clientId) throw new Error('Missing Twitch Client ID in settings')
+    if (!moderatorId) throw new Error('Missing moderator user ID — try logging out and back in')
+
+    const base = { broadcaster_id: handle.broadcasterId, moderator_id: moderatorId }
+    return {
+      url: params => `${TWITCH_HELIX_BASE}/chat/pins?${new URLSearchParams({ ...base, ...params })}`,
+      headers: { Authorization: `Bearer ${accessToken}`, 'Client-Id': clientId }
+    }
+  }
+
+  /** Currently pinned message, or null if none (or no mod permission). */
+  async getPinnedMessage(channelId: string): Promise<PinnedMessage | null> {
+    const { url, headers } = await this.pinRequestContext(channelId)
+    const resp = await net.fetch(url({}), { headers })
+    if (resp.status === 403) return null // not a mod here — pins are invisible to us
+    if (!resp.ok) throw new Error(`Get pinned message failed: ${resp.status}`)
+    const data = await resp.json() as {
+      data?: Array<{
+        message_id: string
+        sender_user_login: string
+        sender_user_name: string
+        pinned_by_user_name: string
+        message?: { text?: string }
+        ends_at?: string | null
+      }>
+    }
+    const pin = data.data?.[0]
+    if (!pin) return null
+    return {
+      messageId: pin.message_id,
+      senderLogin: pin.sender_user_login,
+      senderName: pin.sender_user_name,
+      pinnedByName: pin.pinned_by_user_name,
+      text: pin.message?.text ?? '',
+      endsAt: pin.ends_at ?? null
+    }
+  }
+
+  async pinMessage(channelId: string, messageId: string, durationSeconds?: number): Promise<void> {
+    const { url, headers } = await this.pinRequestContext(channelId)
+    const params: Record<string, string> = { message_id: messageId }
+    if (durationSeconds) params.duration_seconds = String(durationSeconds)
+    const resp = await net.fetch(url(params), { method: 'PUT', headers })
+    // 409 = already pinned — treat as success
+    if (!resp.ok && resp.status !== 409) {
+      if (resp.status === 403) throw new Error('You must be a moderator to pin messages here')
+      if (resp.status === 429) throw new Error('Pinning too fast — try again in a moment')
+      throw new Error(`Pin failed: ${resp.status} ${await resp.text().catch(() => '')}`)
+    }
+  }
+
+  async unpinMessage(channelId: string, messageId: string): Promise<void> {
+    const { url, headers } = await this.pinRequestContext(channelId)
+    const resp = await net.fetch(url({ message_id: messageId }), { method: 'DELETE', headers })
+    // 404 = already unpinned/expired — treat as success
+    if (!resp.ok && resp.status !== 404) {
+      if (resp.status === 403) throw new Error('You must be a moderator to unpin messages here')
+      throw new Error(`Unpin failed: ${resp.status} ${await resp.text().catch(() => '')}`)
     }
   }
 

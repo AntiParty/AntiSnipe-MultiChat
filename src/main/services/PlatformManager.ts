@@ -18,7 +18,7 @@ import { pluginManager } from './PluginManager'
 import { getCurrentSong } from './media'
 import type { ConnectChannelPayload, ConnectionState } from '../../shared/types/channel'
 import type { NormalizedMessage, DeleteMessageEvent } from '../../shared/types/message'
-import type { ModActionPayload, ModActionType, UserCardPayload, UserCardData, StreamInfo } from '../../shared/types/ipc'
+import type { ModActionPayload, ModActionType, UserCardPayload, UserCardData, StreamInfo, PinnedMessage } from '../../shared/types/ipc'
 import type { ViewerListPayload } from '../../shared/types/viewer'
 
 // Twitch removed these commands from IRC in Feb 2023 — must use Helix API instead
@@ -540,6 +540,20 @@ class PlatformManager {
 
   getViewerList(channelId: string): ViewerListPayload | null {
     return this.chatterPoller.getLastResult(channelId)
+  }
+
+  // ── Twitch pinned messages ────────────────────────────────────────────────
+
+  async getPinnedMessage(channelId: string): Promise<PinnedMessage | null> {
+    return this.twitchService.getPinnedMessage(channelId)
+  }
+
+  async pinMessage(channelId: string, messageId: string, durationSeconds?: number): Promise<void> {
+    await this.twitchService.pinMessage(channelId, messageId, durationSeconds)
+  }
+
+  async unpinMessage(channelId: string, messageId: string): Promise<void> {
+    await this.twitchService.unpinMessage(channelId, messageId)
   }
 }
 
