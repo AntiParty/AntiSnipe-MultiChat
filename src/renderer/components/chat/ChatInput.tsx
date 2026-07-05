@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react'
 import { SendHorizonal, Lock } from 'lucide-react'
 import { useStore } from '../../store'
 import type { ChatterInfo } from '../../store/slices/chatSlice'
 import type { NormalizedMessage } from '@shared/types/message'
 import type { PluginMessage } from '@shared/types/plugin'
 import type { EmoteData } from '@shared/types/emote'
+import { expandEmoteShortcodes } from '../../services/emoteShortcodes'
 
 type Suggestion =
   | { kind: 'chatter'; chatter: ChatterInfo }
@@ -53,6 +54,15 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput
   const auth = useStore(s => s.auth)
   const chatters = useStore(s => s.chattersByChannel[channelId])
   const emoteMap = useStore(s => s.emotesByChannel[channelId])
+
+  // lowercase name → real emote name, for :shortcode: expansion on send
+  const emoteByLower = useMemo(() => {
+    const m: Record<string, string> = {}
+    if (emoteMap) {
+      for (const name of Object.keys(emoteMap)) m[name.toLowerCase()] = name
+    }
+    return m
+  }, [emoteMap])
 
   const channel = channels.find(c => c.id === channelId)
   const isAuthRequired =
@@ -224,7 +234,8 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput
 
   const handleSend = async () => {
     if (!canSend) return
-    let messageToSend = text.trim()
+    // Expand :emote: shortcodes anywhere in the message before sending
+    let messageToSend = expandEmoteShortcodes(text.trim(), emoteByLower)
 
     // Run command plugins on !-prefixed messages before sending
     if (messageToSend.startsWith('!')) {
@@ -239,7 +250,7 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput
         let respond = action.respond
         if (respond === '__song__') {
           const song = await window.chatBridge.invoke('media:getCurrent')
-          respond = song || '(nothing playing)'
+          respond = song ? `♪ Now playing: ${song}` : 'Nothing is playing right now.'
         }
         messageToSend = respond
       } else if (action?.type === 'hide') {

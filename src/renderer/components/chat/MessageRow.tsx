@@ -366,8 +366,8 @@ function MessageRow({ message, index }: MessageRowProps) {
                 style={{
                   display: 'inline-block',
                   verticalAlign: 'middle',
-                  width: '14px',
-                  height: '14px',
+                  width: '20px',
+                  height: '20px',
                   borderRadius: '50%',
                   marginRight: '4px',
                   outline: '1px solid #a970ff55'

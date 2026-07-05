@@ -96,7 +96,8 @@ class PlatformManager {
   private async respondToPluginCommand(msg: NormalizedMessage, respond: string): Promise<void> {
     if (respond === '__song__') {
       if (process.platform === 'win32') {
-        respond = (await getCurrentSong()) || '(nothing playing)'
+        const song = await getCurrentSong()
+        respond = song ? `♪ Now playing: ${song}` : 'Nothing is playing right now.'
       } else {
         respond = '(not supported on this OS)'
       }

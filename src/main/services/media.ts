@@ -1,10 +1,14 @@
 import { execFile } from 'child_process'
 
 // Reads the Spotify window title (Windows only) — no API key required.
+// Spotify runs several processes; only the real window has a title. While
+// playing, the title is "Artist - Song"; paused/idle it's just "Spotify" /
+// "Spotify Premium", so require the " - " separator to avoid reporting those.
 const SPOTIFY_TITLE_SCRIPT =
   "$ErrorActionPreference = 'SilentlyContinue'; " +
-  '$spotify = (Get-Process -Name Spotify -ErrorAction SilentlyContinue).MainWindowTitle; ' +
-  "if ($spotify) { $song = $spotify -replace '^Spotify ?- ?'; if ($song -ne '') { $song } }"
+  '$t = (Get-Process -Name Spotify -ErrorAction SilentlyContinue | ' +
+  'Where-Object { $_.MainWindowTitle } | Select-Object -First 1).MainWindowTitle; ' +
+  "if ($t -and $t -match ' - ' -and $t -notmatch '^Spotify') { $t }"
 
 /**
  * Returns the currently playing Spotify track, or '' if nothing is playing.

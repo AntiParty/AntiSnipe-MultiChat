@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, watchFile, unwatchFile } from 'fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, unlinkSync, watchFile, unwatchFile } from 'fs'
 import { join } from 'path'
 import log from 'electron-log'
 import { compilePlugin, runPlugin, type CompiledPlugin } from './pluginSandbox'
@@ -42,6 +42,7 @@ export class PluginManager {
       mkdirSync(this.pluginsDir, { recursive: true })
     }
     this.loadState()
+    this.cleanupLegacyExamples() // removes retired seeds ONLY if unmodified
     this.writeExamplePlugins()  // writes only missing files
   }
 
@@ -214,6 +215,56 @@ export class PluginManager {
     }
   }
 
+  /** Old seeded plugin files we've retired or replaced. Deleted only when the
+   *  on-disk content is byte-identical to what we originally wrote — any user
+   *  edit means the file is theirs now and we leave it alone. */
+  private cleanupLegacyExamples(): void {
+    const legacy: Array<{ name: string; content: string }> = [
+      {
+        // Superseded by native Twitch first-msg support (built into the app)
+        name: 'first-message-highlight.js',
+        content: `// @name First-Time Chatter Highlight
+// Highlights the FIRST message each user sends this session, so you never
+// miss a new chatter saying hi. Remembers who has spoken until the app closes.
+
+const seen = new Set()
+
+export default function firstMessage(msg) {
+  const key = msg.platform + ':' + msg.channelId + ':' + msg.author.toLowerCase()
+  if (seen.has(key)) return null
+  seen.add(key)
+  return { type: 'highlight', color: 'rgba(80, 200, 120, 0.16)' }
+}
+`
+      },
+      {
+        // Replaced by the cooldown version (writeExamplePlugins reseeds it)
+        name: 'song.js',
+        content: `// @name !song Command
+// Type !song in chat to post the currently playing Spotify track (Windows only).
+// The app reads the Spotify window title — no API key required.
+
+export default function song(msg) {
+  if (msg.text.trim().toLowerCase() === '!song') {
+    return { type: 'command', respond: '__song__' }
+  }
+  return null
+}
+`
+      }
+    ]
+
+    for (const item of legacy) {
+      const dest = join(this.pluginsDir, item.name)
+      try {
+        if (existsSync(dest) && readFileSync(dest, 'utf8') === item.content) {
+          unlinkSync(dest)
+          log.info(`PluginManager: removed retired example plugin ${item.name}`)
+        }
+      } catch { /* ignore */ }
+    }
+  }
+
   private writeExamplePlugins(): void {
     // Write only files that don't exist yet — safe to call on every launch
     const files: Array<{ name: string; content: string }> = [
@@ -280,22 +331,6 @@ export default function spamFilter(msg) {
   if (text.length > MAX_LENGTH) return { type: 'hide' }
 
   return null
-}
-`
-      },
-      {
-        name: 'first-message-highlight.js',
-        content: `// @name First-Time Chatter Highlight
-// Highlights the FIRST message each user sends this session, so you never
-// miss a new chatter saying hi. Remembers who has spoken until the app closes.
-
-const seen = new Set()
-
-export default function firstMessage(msg) {
-  const key = msg.platform + ':' + msg.channelId + ':' + msg.author.toLowerCase()
-  if (seen.has(key)) return null
-  seen.add(key)
-  return { type: 'highlight', color: 'rgba(80, 200, 120, 0.16)' }
 }
 `
       },
@@ -383,14 +418,23 @@ export default function keywordHighlight(msg) {
       {
         name: 'song.js',
         content: `// @name !song Command
-// Type !song in chat to post the currently playing Spotify track (Windows only).
-// The app reads the Spotify window title — no API key required.
+// Replies with the currently playing Spotify track (Windows only).
+// The app reads the Spotify window title — no API key or Spotify login needed.
+// Triggers: !song, !nowplaying, !np — with a per-channel cooldown so chat
+// can't spam it.
+
+const TRIGGERS = new Set(['!song', '!nowplaying', '!np'])
+const COOLDOWN_MS = 15000
+const lastUsed = new Map()  // channelId -> timestamp
 
 export default function song(msg) {
-  if (msg.text.trim().toLowerCase() === '!song') {
-    return { type: 'command', respond: '__song__' }
-  }
-  return null
+  if (!TRIGGERS.has(msg.text.trim().toLowerCase())) return null
+
+  const now = Date.now()
+  if (now - (lastUsed.get(msg.channelId) || 0) < COOLDOWN_MS) return null
+  lastUsed.set(msg.channelId, now)
+
+  return { type: 'command', respond: '__song__' }
 }
 `
       },
