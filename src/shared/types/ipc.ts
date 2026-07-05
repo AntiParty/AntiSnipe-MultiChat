@@ -31,6 +31,7 @@ export const MAIN_CHANNELS = {
   RELOAD_PLUGINS: 'plugins:reload',
   TOGGLE_PLUGIN: 'plugins:toggle',
   GET_VIEWER_COUNTS: 'streams:viewerCounts',
+  GET_STREAM_INFO: 'streams:info',
   GET_VIEWER_LIST: 'viewers:getList',
   GET_RECENT_MESSAGES: 'chat:getRecentMessages',
   GET_USER_CARD: 'twitch:getUserCard',
@@ -88,6 +89,14 @@ export interface FetchEmotesPayload {
 
 export interface ShellOpenPayload {
   url: string
+}
+
+/** Live stream metadata for the Chatterino-style channel header. */
+export interface StreamInfo {
+  viewerCount: number
+  gameName: string
+  title: string
+  startedAt: string   // ISO timestamp
 }
 
 export type AuthStatus = 'authenticated' | 'unauthenticated' | 'error'
@@ -221,6 +230,7 @@ export interface ChatBridgeInvokeMap {
   [MAIN_CHANNELS.RELOAD_PLUGINS]: [undefined, PluginRecord[]]
   [MAIN_CHANNELS.TOGGLE_PLUGIN]: [TogglePluginPayload, PluginRecord[]]
   [MAIN_CHANNELS.GET_VIEWER_COUNTS]: [undefined, Record<string, number>]
+  [MAIN_CHANNELS.GET_STREAM_INFO]: [undefined, Record<string, StreamInfo>]
   [MAIN_CHANNELS.GET_VIEWER_LIST]: [GetViewerListPayload, ViewerListPayload | null]
   [MAIN_CHANNELS.GET_RECENT_MESSAGES]: [{ channelId: string }, NormalizedMessage[]]
   [MAIN_CHANNELS.GET_USER_CARD]: [UserCardPayload, UserCardData | null]

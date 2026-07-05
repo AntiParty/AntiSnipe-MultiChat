@@ -142,6 +142,10 @@ export function registerIpcHandlers(): void {
     return platformManager.getViewerCounts()
   })
 
+  ipcMain.handle(MAIN_CHANNELS.GET_STREAM_INFO, () => {
+    return platformManager.getStreamInfo()
+  })
+
   ipcMain.handle(MAIN_CHANNELS.GET_RECENT_MESSAGES, (_e, payload: { channelId: string }) => {
     return platformManager.getRecentMessages(payload.channelId)
   })

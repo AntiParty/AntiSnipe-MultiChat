@@ -18,7 +18,7 @@ import { pluginManager } from './PluginManager'
 import { getCurrentSong } from './media'
 import type { ConnectChannelPayload, ConnectionState } from '../../shared/types/channel'
 import type { NormalizedMessage, DeleteMessageEvent } from '../../shared/types/message'
-import type { ModActionPayload, ModActionType, UserCardPayload, UserCardData } from '../../shared/types/ipc'
+import type { ModActionPayload, ModActionType, UserCardPayload, UserCardData, StreamInfo } from '../../shared/types/ipc'
 import type { ViewerListPayload } from '../../shared/types/viewer'
 
 // Twitch removed these commands from IRC in Feb 2023 — must use Helix API instead
@@ -339,8 +339,19 @@ class PlatformManager {
 
   /** Returns live viewer counts keyed by channelId for all connected Twitch channels. */
   async getViewerCounts(): Promise<Record<string, number>> {
+    const info = await this.getStreamInfo()
+    const counts: Record<string, number> = {}
+    for (const [channelId, stream] of Object.entries(info)) {
+      counts[channelId] = stream.viewerCount
+    }
+    return counts
+  }
+
+  /** Live stream metadata (viewers, game, uptime) keyed by channelId. */
+  async getStreamInfo(): Promise<Record<string, StreamInfo>> {
     const settings = settingsStore.get()
-    const accessToken = tokenStore.getAccessToken('twitch')
+    let accessToken = tokenStore.getAccessToken('twitch')
+    if (!accessToken) accessToken = await twitchAuth.refreshAccessToken()
     if (!accessToken || !settings.twitchClientId) return {}
 
     const twitchChannels = settings.channels.filter(c => c.platform === 'twitch')
@@ -355,13 +366,28 @@ class PlatformManager {
         }
       })
       if (!resp.ok) return {}
-      const data = await resp.json() as { data: Array<{ user_login: string; viewer_count: number }> }
-      const counts: Record<string, number> = {}
+      const data = await resp.json() as {
+        data: Array<{
+          user_login: string
+          viewer_count: number
+          game_name?: string
+          title?: string
+          started_at?: string
+        }>
+      }
+      const info: Record<string, StreamInfo> = {}
       for (const stream of data.data ?? []) {
         const ch = twitchChannels.find(c => c.slug === stream.user_login.toLowerCase())
-        if (ch) counts[ch.id] = stream.viewer_count
+        if (ch) {
+          info[ch.id] = {
+            viewerCount: stream.viewer_count,
+            gameName: stream.game_name ?? '',
+            title: stream.title ?? '',
+            startedAt: stream.started_at ?? ''
+          }
+        }
       }
-      return counts
+      return info
     } catch {
       return {}
     }

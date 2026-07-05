@@ -176,9 +176,13 @@ function MessageRow({ message, index }: MessageRowProps) {
     ? pluginAction.color
     : alternatingRows && index % 2 === 1 ? 'var(--surface-1)' : undefined
 
-  // Show mod actions for mods on real (non-optimistic) Twitch messages
+  // Show mod actions for mods on real (non-optimistic) messages.
+  // Twitch and YouTube both support delete/timeout/ban via their APIs.
   const hasRealMessageId = !message.id.startsWith('self-')
-  const showModActions = isMod && message.platform === 'twitch' && !!message.authorId && hasRealMessageId
+  const platformSupportsMod = message.platform === 'twitch' || message.platform === 'youtube'
+  const showModActions = isMod && platformSupportsMod && !!message.authorId && hasRealMessageId
+  // YouTube's API can't unban (needs the ban resource id we don't keep)
+  const supportsUnban = message.platform === 'twitch'
 
   return (
     <div
@@ -270,6 +274,7 @@ function MessageRow({ message, index }: MessageRowProps) {
 
             {modButtons.showBan && (
               isDeleted ? (
+                supportsUnban && (
                 <button
                   className={styles.modBtn}
                   title="Unban user"
@@ -277,6 +282,7 @@ function MessageRow({ message, index }: MessageRowProps) {
                 >
                   <ShieldOff size={10} />
                 </button>
+                )
               ) : (
                 <button
                   className={clsx(styles.modBtn, styles.modBtnDanger)}

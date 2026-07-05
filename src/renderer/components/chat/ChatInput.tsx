@@ -437,7 +437,15 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput
             }, 150)
           }}
           disabled={sending}
-          placeholder={`Chat in ${channel?.displayName}…`}
+          placeholder={(() => {
+            // Chatterino-style: "Send message as antiparty…"
+            const username = channel?.platform === 'twitch'
+              ? auth.twitch.username
+              : channel?.platform === 'youtube'
+                ? auth.youtube.username
+                : undefined
+            return username ? `Send message as ${username}…` : `Chat in ${channel?.displayName}…`
+          })()}
           maxLength={CHAR_LIMIT + 10}
           autoComplete="off"
           spellCheck={false}

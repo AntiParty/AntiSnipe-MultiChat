@@ -160,14 +160,20 @@ export function initIpcSync(): () => void {
     })
   )
 
-  // Viewer count polling — fetches every 60s unconditionally
-  const pollViewerCounts = () => {
-    bridge.invoke('streams:viewerCounts').then(counts => {
+  // Stream info polling (viewers, game, uptime) — one Helix call feeds both
+  // the viewer-count chips and the Chatterino-style channel header
+  const pollStreamInfo = () => {
+    bridge.invoke(MAIN_CHANNELS.GET_STREAM_INFO).then(info => {
+      useStore.getState().setStreamInfo(info)
+      const counts: Record<string, number> = {}
+      for (const [channelId, stream] of Object.entries(info)) {
+        counts[channelId] = stream.viewerCount
+      }
       useStore.getState().setViewerCounts(counts)
     }).catch(() => {})
   }
-  pollViewerCounts()
-  const viewerCountTimer = setInterval(pollViewerCounts, 60_000)
+  pollStreamInfo()
+  const viewerCountTimer = setInterval(pollStreamInfo, 60_000)
 
   return () => {
     clearInterval(viewerCountTimer)

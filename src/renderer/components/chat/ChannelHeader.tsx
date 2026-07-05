@@ -1,14 +1,32 @@
 import { useState, useRef, useEffect } from 'react'
 import { useStore } from '../../store'
 
+/** "1h 13m" style uptime from an ISO start timestamp. */
+function formatUptime(startedAt: string, now: number): string | null {
+  const start = Date.parse(startedAt)
+  if (!Number.isFinite(start) || start > now) return null
+  const mins = Math.floor((now - start) / 60_000)
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
+
 export default function ChannelHeader() {
   const activeChannelId = useStore(s => s.activeChannelId)
   const channels = useStore(s => s.channels)
   const viewerCounts = useStore(s => s.viewerCountsByChannel)
+  const streamInfo = useStore(s => s.streamInfoByChannel)
   const connectionStates = useStore(s => s.connectionStates)
   const clearChannel = useStore(s => s.clearChannel)
   const viewerListOpen = useStore(s => s.viewerListOpen)
   const toggleViewerList = useStore(s => s.toggleViewerList)
+
+  // Tick every 30s so the uptime counter stays fresh between polls
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(t)
+  }, [])
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -81,37 +99,53 @@ export default function ChannelHeader() {
   if (!channel) return null
 
   const viewers = viewerCounts[activeChannelId]
+  const info = streamInfo[activeChannelId]
   const state = connectionStates[activeChannelId]
   const isLive = state?.status === 'connected' && viewers != null && viewers > 0
+  const uptime = info?.startedAt ? formatUptime(info.startedAt, now) : null
+
+  // Chatterino-style status line: name (live) - 1h 13m - 126 - VALORANT
+  const statusParts = isLive
+    ? [uptime, viewers!.toLocaleString(), info?.gameName || null].filter(Boolean)
+    : []
 
   return (
     <>
       <div style={{
         display: 'flex',
         alignItems: 'center',
+        justifyContent: 'center',
         padding: '3px 10px',
         background: 'var(--surface-1)',
         borderBottom: '1px solid var(--border)',
         flexShrink: 0,
         minHeight: '22px',
-        gap: '6px'
+        gap: '6px',
+        position: 'relative'
       }}>
-        <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-primary)' }}>
+        <span
+          onContextMenu={handleLiveContextMenu}
+          title={isLive ? (info?.title || undefined) : undefined}
+          style={{
+            fontSize: '11px',
+            fontWeight: 600,
+            color: isLive ? 'var(--accent)' : 'var(--text-primary)',
+            cursor: 'context-menu',
+            userSelect: 'none',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+        >
           {channel.displayName}
-        </span>
-        {isLive && (
-          <span
-            onContextMenu={handleLiveContextMenu}
-            style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'context-menu', userSelect: 'none' }}
-            title="Right-click to clear chat"
-          >
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#e91916', flexShrink: 0 }} />
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-              {viewers!.toLocaleString()} viewers
+          {isLive && <span style={{ fontWeight: 400 }}> (live)</span>}
+          {statusParts.length > 0 && (
+            <span style={{ fontWeight: 400 }}>
+              {statusParts.map(p => ` - ${p}`).join('')}
             </span>
-          </span>
-        )}
-        <div style={{ flex: 1 }} />
+          )}
+        </span>
+        <div style={{ position: 'absolute', right: '4px', display: 'flex', alignItems: 'center' }}>
         <button
           onClick={toggleViewerList}
           title={viewerListOpen ? 'Hide viewer list' : 'Show viewer list'}
@@ -131,6 +165,7 @@ export default function ChannelHeader() {
         >
           ☰
         </button>
+        </div>
       </div>
 
       {menu && (

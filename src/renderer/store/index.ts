@@ -83,6 +83,7 @@ function buildChatSlice(set: SetState): ChatSlice {
     activeChannelId: 'all',
     unreadCounts: {},
     viewerCountsByChannel: {},
+    streamInfoByChannel: {},
     addMessages: messages =>
       set(state => {
         for (const msg of messages) {
@@ -185,6 +186,8 @@ function buildChatSlice(set: SetState): ChatSlice {
       set(state => { state.selfModByChannel[channelId] = isMod }),
     setViewerCounts: counts =>
       set(state => { state.viewerCountsByChannel = counts }),
+    setStreamInfo: info =>
+      set(state => { state.streamInfoByChannel = info }),
     prependMessages: (channelId, messages) =>
       set(state => {
         const existing = state.messagesByChannel[channelId] ?? []

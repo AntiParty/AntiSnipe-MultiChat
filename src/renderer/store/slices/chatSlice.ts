@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand'
 import type { NormalizedMessage, MessagePart, DeleteMessageEvent } from '@shared/types/message'
+import type { StreamInfo } from '@shared/types/ipc'
 import type { EmoteData } from '@shared/types/emote'
 import { MAX_MESSAGES_PER_CHANNEL, TRIM_AMOUNT } from '@shared/constants'
 
@@ -17,6 +18,7 @@ export interface ChatSlice {
   activeChannelId: string
   unreadCounts: Record<string, number>
   viewerCountsByChannel: Record<string, number>
+  streamInfoByChannel: Record<string, StreamInfo>
 
   addMessages: (messages: NormalizedMessage[]) => void
   prependMessages: (channelId: string, messages: NormalizedMessage[]) => void
@@ -27,6 +29,7 @@ export interface ChatSlice {
   setChannelEmotes: (channelId: string, emotes: EmoteData[]) => void
   setSelfModStatus: (channelId: string, isMod: boolean) => void
   setViewerCounts: (counts: Record<string, number>) => void
+  setStreamInfo: (info: Record<string, StreamInfo>) => void
 }
 
 function emotePriority(provider: EmoteData['provider']): number {
@@ -62,6 +65,7 @@ export const createChatSlice: StateCreator<ChatSlice, [['zustand/immer', never]]
   activeChannelId: 'all',
   unreadCounts: {},
   viewerCountsByChannel: {},
+  streamInfoByChannel: {},
 
   addMessages: messages => {
     set(state => {
@@ -133,6 +137,10 @@ export const createChatSlice: StateCreator<ChatSlice, [['zustand/immer', never]]
 
   setViewerCounts: counts => {
     set(state => { state.viewerCountsByChannel = counts })
+  },
+
+  setStreamInfo: info => {
+    set(state => { state.streamInfoByChannel = info })
   },
 
   prependMessages: (channelId, messages) => {
