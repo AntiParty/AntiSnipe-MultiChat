@@ -217,105 +217,105 @@ export default function ChatPane() {
         <div
           onClick={() => setPinExpanded(v => !v)}
           style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '8px',
-            padding: '6px 10px',
-            background: 'var(--surface-2)',
+            padding: '5px 10px 6px',
+            background: 'linear-gradient(to right, rgba(169,112,255,0.07), transparent 60%), var(--surface-1)',
             borderBottom: '1px solid var(--border)',
+            boxShadow: 'inset 3px 0 0 #a970ff',
             flexShrink: 0,
             cursor: 'pointer',
             userSelect: 'none'
           }}
         >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {/* Line 1: Pinned by X */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              fontSize: '10px',
-              color: 'var(--text-muted)',
-              marginBottom: '2px'
-            }}>
-              <Pin size={10} style={{ flexShrink: 0 }} />
-              <span>Pinned by <span style={{ fontWeight: 600 }}>{pinned.pinnedByName}</span></span>
-            </div>
-            {/* Line 2: the message */}
-            <div style={{
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              lineHeight: 1.4,
-              ...(pinExpanded
-                ? { wordBreak: 'break-word' as const }
-                : {
-                    whiteSpace: 'nowrap' as const,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                  })
-            }}>
-              {pinned.text}
-            </div>
-            {pinExpanded && (
-              <div style={{
+          {/* Line 1: Pinned by X …………………………… chevron */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            fontSize: '10px',
+            color: 'var(--text-muted)'
+          }}>
+            <Pin size={10} style={{ color: '#a970ff', flexShrink: 0 }} />
+            <span style={{ flex: 1, minWidth: 0 }}>
+              Pinned by <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{pinned.pinnedByName}</span>
+            </span>
+            <ChevronDown
+              size={13}
+              style={{
+                color: 'var(--text-muted)',
+                flexShrink: 0,
+                transform: pinExpanded ? 'rotate(180deg)' : undefined,
+                transition: 'transform 0.12s'
+              }}
+            />
+          </div>
+
+          {/* Line 2: the message */}
+          <div style={{
+            fontSize: '12px',
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            lineHeight: 1.45,
+            marginTop: '1px',
+            paddingRight: '18px',
+            ...(pinExpanded
+              ? { wordBreak: 'break-word' as const }
+              : {
+                  whiteSpace: 'nowrap' as const,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                })
+          }}>
+            <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>{pinned.senderName}: </span>
+            {pinned.text}
+          </div>
+
+          {/* Expanded footer: duration + unpin as quiet text actions */}
+          {pinExpanded && isModHere && (
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '10px',
-                marginTop: '4px',
+                marginTop: '5px',
                 fontSize: '10px',
-                color: 'var(--text-muted)',
-                flexWrap: 'wrap'
-              }}>
-                <span>Sent by {pinned.senderName}</span>
-                {isModHere && (
-                  <>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      Pin for:
-                      {[
-                        { label: '1m', seconds: 60 },
-                        { label: '5m', seconds: 300 },
-                        { label: '30m', seconds: 1800 },
-                        { label: '∞', seconds: undefined as number | undefined }
-                      ].map(d => (
-                        <button
-                          key={d.label}
-                          onClick={e => { e.stopPropagation(); handlePinDuration(d.seconds) }}
-                          title={d.seconds ? `Pin for ${d.label} from now` : 'Pin until the stream ends'}
-                          style={{
-                            background: 'var(--surface-3)', border: '1px solid var(--border)',
-                            borderRadius: '3px', cursor: 'pointer', color: 'var(--text-secondary)',
-                            fontSize: '10px', fontWeight: 600, padding: '1px 6px'
-                          }}
-                        >
-                          {d.label}
-                        </button>
-                      ))}
-                    </span>
-                    <button
-                      onClick={e => { e.stopPropagation(); handleUnpin() }}
-                      style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        color: 'var(--danger)', fontSize: '10px', fontWeight: 600, padding: 0
-                      }}
-                    >
-                      Unpin
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-          <ChevronDown
-            size={14}
-            style={{
-              color: 'var(--text-muted)',
-              flexShrink: 0,
-              marginTop: '8px',
-              transform: pinExpanded ? 'rotate(180deg)' : undefined,
-              transition: 'transform 0.12s'
-            }}
-          />
+                color: 'var(--text-muted)'
+              }}
+            >
+              <span style={{ marginRight: '2px' }}>Pin for</span>
+              {[
+                { label: '1m', seconds: 60 },
+                { label: '5m', seconds: 300 },
+                { label: '30m', seconds: 1800 },
+                { label: '∞', seconds: undefined as number | undefined }
+              ].map(d => (
+                <button
+                  key={d.label}
+                  onClick={() => handlePinDuration(d.seconds)}
+                  title={d.seconds ? `Keep pinned for ${d.label} from now` : 'Keep pinned until the stream ends'}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: '#a970ff', fontSize: '10px', fontWeight: 700, padding: '1px 5px'
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.textDecoration = 'underline' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.textDecoration = 'none' }}
+                >
+                  {d.label}
+                </button>
+              ))}
+              <span style={{ flex: 1 }} />
+              <button
+                onClick={handleUnpin}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--danger)', fontSize: '10px', fontWeight: 600, padding: '1px 2px'
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.textDecoration = 'underline' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.textDecoration = 'none' }}
+              >
+                Unpin
+              </button>
+            </div>
+          )}
         </div>
       )}
 
