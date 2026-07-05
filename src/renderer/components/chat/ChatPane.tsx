@@ -79,6 +79,19 @@ export default function ChatPane() {
       .catch(err => console.error('Unpin failed:', err))
   }, [pinned, activeChannelId, setPinnedMessage])
 
+  const handlePinDuration = useCallback((durationSeconds?: number) => {
+    if (!pinned) return
+    const channelId = activeChannelId
+    window.chatBridge.invoke(MAIN_CHANNELS.UPDATE_PIN, {
+      channelId,
+      messageId: pinned.messageId,
+      durationSeconds
+    })
+      .then(() => window.chatBridge.invoke(MAIN_CHANNELS.GET_PINNED_MESSAGE, { channelId }))
+      .then(pin => setPinnedMessage(channelId, pin))
+      .catch(err => console.error('Update pin failed:', err))
+  }, [pinned, activeChannelId, setPinnedMessage])
+
   // Hide the banner client-side once a timed pin expires
   const pinExpired = !!pinned?.endsAt && Date.parse(pinned.endsAt) < Date.now()
 
@@ -251,19 +264,44 @@ export default function ChatPane() {
                 gap: '10px',
                 marginTop: '4px',
                 fontSize: '10px',
-                color: 'var(--text-muted)'
+                color: 'var(--text-muted)',
+                flexWrap: 'wrap'
               }}>
                 <span>Sent by {pinned.senderName}</span>
                 {isModHere && (
-                  <button
-                    onClick={e => { e.stopPropagation(); handleUnpin() }}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: 'var(--danger)', fontSize: '10px', fontWeight: 600, padding: 0
-                    }}
-                  >
-                    Unpin
-                  </button>
+                  <>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      Pin for:
+                      {[
+                        { label: '1m', seconds: 60 },
+                        { label: '5m', seconds: 300 },
+                        { label: '30m', seconds: 1800 },
+                        { label: '∞', seconds: undefined as number | undefined }
+                      ].map(d => (
+                        <button
+                          key={d.label}
+                          onClick={e => { e.stopPropagation(); handlePinDuration(d.seconds) }}
+                          title={d.seconds ? `Pin for ${d.label} from now` : 'Pin until the stream ends'}
+                          style={{
+                            background: 'var(--surface-3)', border: '1px solid var(--border)',
+                            borderRadius: '3px', cursor: 'pointer', color: 'var(--text-secondary)',
+                            fontSize: '10px', fontWeight: 600, padding: '1px 6px'
+                          }}
+                        >
+                          {d.label}
+                        </button>
+                      ))}
+                    </span>
+                    <button
+                      onClick={e => { e.stopPropagation(); handleUnpin() }}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: 'var(--danger)', fontSize: '10px', fontWeight: 600, padding: 0
+                      }}
+                    >
+                      Unpin
+                    </button>
+                  </>
                 )}
               </div>
             )}

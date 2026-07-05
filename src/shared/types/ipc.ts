@@ -37,6 +37,7 @@ export const MAIN_CHANNELS = {
   GET_USER_CARD: 'twitch:getUserCard',
   GET_PINNED_MESSAGE: 'twitch:getPinnedMessage',
   PIN_MESSAGE: 'twitch:pinMessage',
+  UPDATE_PIN: 'twitch:updatePin',
   UNPIN_MESSAGE: 'twitch:unpinMessage',
   OPEN_USER_CARD_WINDOW: 'usercard:openWindow',
   FETCH_7TV_COSMETICS: '7tv:fetchCosmetics',
@@ -261,6 +262,7 @@ export interface ChatBridgeInvokeMap {
   [MAIN_CHANNELS.GET_USER_CARD]: [UserCardPayload, UserCardData | null]
   [MAIN_CHANNELS.GET_PINNED_MESSAGE]: [{ channelId: string }, PinnedMessage | null]
   [MAIN_CHANNELS.PIN_MESSAGE]: [PinMessagePayload, void]
+  [MAIN_CHANNELS.UPDATE_PIN]: [PinMessagePayload, void]
   [MAIN_CHANNELS.UNPIN_MESSAGE]: [UnpinMessagePayload, void]
   [MAIN_CHANNELS.OPEN_USER_CARD_WINDOW]: [UserCardPayload, void]
   [MAIN_CHANNELS.FETCH_7TV_COSMETICS]: [SevenTvCosmeticsPayload, SevenTvCosmeticsResult]

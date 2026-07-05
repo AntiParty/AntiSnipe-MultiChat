@@ -64,6 +64,7 @@ export class TwitchService {
   private onRoomState: OnRoomState
   private onSelfModStatus: OnSelfModStatus
   private selfMessageKeys = new Map<string, number>() // "login:raw" → sent timestamp
+  private pendingPins = new Map<string, number>()     // "login:raw" → deadline for /pin
   private selfBadgeTags = new Map<string, string>()   // channelId → last known badge tag string
   private selfModStatus = new Map<string, boolean>()  // channelId → is mod/broadcaster
   private eventSub: TwitchEventSubClient
@@ -149,6 +150,14 @@ export class TwitchService {
         }
       }
     }
+  }
+
+  /** Arm a pin for the next echo of `text` (used by the /pin chat command).
+   *  Call right after sendMessage with the same text. */
+  queuePinOnEcho(text: string): void {
+    const { username } = tokenStore.getUserInfo('twitch')
+    if (!username) return
+    this.pendingPins.set(`${username.toLowerCase()}:${text}`, Date.now() + 10_000)
   }
 
   disconnect(): void {
@@ -317,6 +326,20 @@ export class TwitchService {
             if (echoed) {
               echoed.isSelfEcho = true
               this.onMessage(echoed)
+              // /pin command: now that the message has its real ID, pin it
+              const pinDeadline = this.pendingPins.get(echoKey)
+              if (pinDeadline !== undefined) {
+                this.pendingPins.delete(echoKey)
+                if (Date.now() <= pinDeadline) {
+                  this.pinMessage(handle.channelId, echoed.id).catch(err => {
+                    this.onMessage(buildSystemMessage(
+                      handle.channelId,
+                      handle.displayName,
+                      `⚠ Could not pin message: ${err instanceof Error ? err.message : err}`
+                    ))
+                  })
+                }
+              }
             }
             break
           }
@@ -631,6 +654,18 @@ export class TwitchService {
       if (resp.status === 403) throw new Error('You must be a moderator to pin messages here')
       if (resp.status === 429) throw new Error('Pinning too fast — try again in a moment')
       throw new Error(`Pin failed: ${resp.status} ${await resp.text().catch(() => '')}`)
+    }
+  }
+
+  /** Change how long the current pin lasts (PATCH). Omit duration = until stream ends. */
+  async updatePinDuration(channelId: string, messageId: string, durationSeconds?: number): Promise<void> {
+    const { url, headers } = await this.pinRequestContext(channelId)
+    const params: Record<string, string> = { message_id: messageId }
+    if (durationSeconds) params.duration_seconds = String(durationSeconds)
+    const resp = await net.fetch(url(params), { method: 'PATCH', headers })
+    if (!resp.ok) {
+      if (resp.status === 403) throw new Error('You must be a moderator to update pins here')
+      throw new Error(`Update pin failed: ${resp.status} ${await resp.text().catch(() => '')}`)
     }
   }
 

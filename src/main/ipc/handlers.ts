@@ -170,6 +170,10 @@ export function registerIpcHandlers(): void {
     await platformManager.pinMessage(payload.channelId, payload.messageId, payload.durationSeconds)
   })
 
+  ipcMain.handle(MAIN_CHANNELS.UPDATE_PIN, async (_e, payload: PinMessagePayload) => {
+    await platformManager.updatePinDuration(payload.channelId, payload.messageId, payload.durationSeconds)
+  })
+
   ipcMain.handle(MAIN_CHANNELS.UNPIN_MESSAGE, async (_e, payload: UnpinMessagePayload) => {
     await platformManager.unpinMessage(payload.channelId, payload.messageId)
   })

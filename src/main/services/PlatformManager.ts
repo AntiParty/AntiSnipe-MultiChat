@@ -249,8 +249,18 @@ class PlatformManager {
     if (!channel) throw new Error(`Channel ${channelId} not found in settings`)
 
     if (channel.platform === 'twitch') {
+      // "/pin <message>" — send the message, then pin it once the IRC echo
+      // delivers its real message ID
+      let pinAfterSend = false
+      const pinMatch = text.match(/^\/pin\s+(.+)/is)
+      if (pinMatch) {
+        text = pinMatch[1].trim()
+        if (!text) return
+        pinAfterSend = true
+      }
+
       // Check if this is a removed IRC command that must go through the Helix API
-      if (text.startsWith('/')) {
+      if (!pinAfterSend && text.startsWith('/')) {
         const parts = text.trim().split(/\s+/)
         const cmd = parts[0].toLowerCase()
         const action = REMOVED_IRC_COMMANDS[cmd]
@@ -266,6 +276,7 @@ class PlatformManager {
       }
 
       this.twitchService.sendMessage(channelId, text)
+      if (pinAfterSend) this.twitchService.queuePinOnEcho(text)
       // Optimistic injection — show the message immediately without waiting for IRC echo
       const { username, userId } = tokenStore.getUserInfo('twitch')
       if (username && userId) {
@@ -550,6 +561,10 @@ class PlatformManager {
 
   async pinMessage(channelId: string, messageId: string, durationSeconds?: number): Promise<void> {
     await this.twitchService.pinMessage(channelId, messageId, durationSeconds)
+  }
+
+  async updatePinDuration(channelId: string, messageId: string, durationSeconds?: number): Promise<void> {
+    await this.twitchService.updatePinDuration(channelId, messageId, durationSeconds)
   }
 
   async unpinMessage(channelId: string, messageId: string): Promise<void> {
