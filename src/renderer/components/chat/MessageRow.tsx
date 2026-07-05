@@ -105,13 +105,15 @@ function MessageRow({ message, index }: MessageRowProps) {
     message.replyTo.userLogin?.toLowerCase() === loggedInUsername.toLowerCase()
 
   const [timeoutOpen, setTimeoutOpen] = useState(false)
+  const [pinMenuOpen, setPinMenuOpen] = useState(false)
   const setPinnedMessage = useStore(s => s.setPinnedMessage)
 
-  const handlePin = useCallback(async () => {
+  const handlePin = useCallback(async (durationSeconds?: number) => {
     try {
       await window.chatBridge.invoke('twitch:pinMessage', {
         channelId: message.channelId,
-        messageId: message.id
+        messageId: message.id,
+        durationSeconds
       })
       const pin = await window.chatBridge.invoke('twitch:getPinnedMessage', {
         channelId: message.channelId
@@ -121,6 +123,14 @@ function MessageRow({ message, index }: MessageRowProps) {
       console.error('Pin failed:', err)
     }
   }, [message.channelId, message.id, setPinnedMessage])
+
+  // Twitch allows 30s–30min timed pins; undefined = until stream ends
+  const PIN_DURATIONS: Array<{ label: string; seconds?: number }> = [
+    { label: '1m', seconds: 60 },
+    { label: '5m', seconds: 300 },
+    { label: '30m', seconds: 1800 },
+    { label: 'Until stream ends', seconds: undefined }
+  ]
 
   const { messageType, isHighlighted, isMention, isAction, isDeleted, raw } = message
 
@@ -222,7 +232,7 @@ function MessageRow({ message, index }: MessageRowProps) {
             ? 0.5
             : undefined
       }}
-      onMouseLeave={() => setTimeoutOpen(false)}
+      onMouseLeave={() => { setTimeoutOpen(false); setPinMenuOpen(false) }}
     >
       {showReplyContext && message.replyTo && (
         <div className={clsx(styles.replyBar, { [styles.replyToMe]: isReplyToMe })}>
@@ -267,13 +277,32 @@ function MessageRow({ message, index }: MessageRowProps) {
             )}
 
             {message.platform === 'twitch' && !isDeleted && (
-              <button
-                className={styles.modBtn}
-                title="Pin message (until stream ends)"
-                onClick={e => { e.stopPropagation(); handlePin() }}
-              >
-                <Pin size={10} />
-              </button>
+              <span style={{ position: 'relative', display: 'inline-flex' }}>
+                <button
+                  className={styles.modBtn}
+                  title="Pin message — click to choose a duration"
+                  onClick={e => { e.stopPropagation(); setPinMenuOpen(v => !v) }}
+                >
+                  <Pin size={10} />
+                </button>
+                {pinMenuOpen && (
+                  <span className={styles.timeoutMenuLeft}>
+                    {PIN_DURATIONS.map(d => (
+                      <button
+                        key={d.label}
+                        className={styles.timeoutOption}
+                        onClick={e => {
+                          e.stopPropagation()
+                          setPinMenuOpen(false)
+                          handlePin(d.seconds)
+                        }}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </span>
+                )}
+              </span>
             )}
 
             {modButtons.showTimeout && !isDeleted && (
