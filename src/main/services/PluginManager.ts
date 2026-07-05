@@ -19,7 +19,8 @@ function toPluginMessage(msg: NormalizedMessage): PluginMessage {
     author: msg.authorName, authorDisplay: msg.authorDisplayName,
     text, messageType: msg.messageType, badges,
     isMod: badges.includes('moderator') || badges.includes('broadcaster'),
-    isSubscriber: badges.includes('subscriber') || badges.includes('founder')
+    isSubscriber: badges.includes('subscriber') || badges.includes('founder'),
+    isFirstMessage: msg.isFirstMessage ?? false
   }
 }
 

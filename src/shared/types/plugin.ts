@@ -22,6 +22,8 @@ export interface PluginMessage {
   badges: string[]       // badge IDs e.g. ['moderator', 'subscriber']
   isMod: boolean
   isSubscriber: boolean
+  /** Twitch only: the author's first message ever in this channel (first-msg tag). */
+  isFirstMessage?: boolean
 }
 
 export type PluginAction =

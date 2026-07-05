@@ -247,6 +247,7 @@ export function normalizeTwitchMessage(
     replyTo,
     customRewardId,
     sharedSource: shared?.isForeign ? { roomId: shared.sourceRoomId } : undefined,
+    isFirstMessage: tags['first-msg'] === '1',
     badgeIds
   }
 }

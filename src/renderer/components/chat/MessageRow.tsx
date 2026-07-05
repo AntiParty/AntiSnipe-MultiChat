@@ -175,7 +175,9 @@ function MessageRow({ message, index }: MessageRowProps) {
 
   const rowBg = pluginAction?.type === 'highlight'
     ? pluginAction.color
-    : alternatingRows && index % 2 === 1 ? 'var(--surface-1)' : undefined
+    : message.isFirstMessage
+      ? 'rgba(80, 200, 120, 0.10)'
+      : alternatingRows && index % 2 === 1 ? 'var(--surface-1)' : undefined
 
   // Show mod actions for mods on real (non-optimistic) messages.
   // Twitch and YouTube both support delete/timeout/ban via their APIs.
@@ -338,6 +340,16 @@ function MessageRow({ message, index }: MessageRowProps) {
               style={{ background: pluginAction.color ? `${pluginAction.color}22` : undefined, color: pluginAction.color }}
             >
               {pluginAction.label}
+            </span>
+          )}
+
+          {message.isFirstMessage && (
+            <span
+              className={styles.pluginTag}
+              title="This user's first message ever in this channel"
+              style={{ background: 'rgba(80, 200, 120, 0.16)', color: '#50c878' }}
+            >
+              First message
             </span>
           )}
 
