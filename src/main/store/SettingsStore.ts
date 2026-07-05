@@ -28,6 +28,7 @@ const settingsSchema = z.object({
   messageSpacing: z.enum(['compact', 'normal', 'comfortable']).default('normal'),
   alternatingRows: z.boolean().default(false),
   usernameDisplay: z.enum(['display-name', 'login', 'both']).default('display-name'),
+  dimSharedChatMessages: z.boolean().default(false),
   enabledProviders: z.object({
     sevenTv: z.boolean().default(true),
     bttv: z.boolean().default(true),
@@ -94,6 +95,7 @@ class SettingsStore {
       messageSpacing: this.store.get('messageSpacing', 'normal'),
       alternatingRows: this.store.get('alternatingRows', false),
       usernameDisplay: this.store.get('usernameDisplay', 'display-name'),
+      dimSharedChatMessages: this.store.get('dimSharedChatMessages', false),
       enabledProviders: this.store.get('enabledProviders', DEFAULT_SETTINGS.enabledProviders),
       animateEmotes: this.store.get('animateEmotes', 'always'),
       show7tvBadges: this.store.get('show7tvBadges', true),

@@ -134,6 +134,12 @@ export default function SettingsGeneral() {
             onCheckedChange={v => save({ alternatingRows: v })}
             label="Alternating row colors"
           />
+
+          <Toggle
+            checked={settings.dimSharedChatMessages}
+            onCheckedChange={v => save({ dimSharedChatMessages: v })}
+            label="Gray out Shared Chat messages from other channels"
+          />
         </div>
       </section>
 

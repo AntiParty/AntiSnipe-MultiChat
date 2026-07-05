@@ -67,7 +67,8 @@ export class TwitchService {
   private selfBadgeTags = new Map<string, string>()   // channelId → last known badge tag string
   private selfModStatus = new Map<string, boolean>()  // channelId → is mod/broadcaster
   private eventSub: TwitchEventSubClient
-  private sourceNameCache = new Map<string, string>() // shared-chat roomId → display name
+  // Shared-chat roomId → source channel identity (name + avatar for the UI tag)
+  private sourceChannelCache = new Map<string, { name: string; avatarUrl?: string }>()
   private sourceNameFetching = new Set<string>()
 
   constructor(onMessage: OnMessage, onDelete: OnDelete, onStatus: OnStatus, onRoomState: OnRoomState, onSelfModStatus: OnSelfModStatus) {
@@ -318,8 +319,9 @@ export class TwitchService {
         )
         if (normalized) {
           if (normalized.sharedSource) {
-            normalized.sharedSource.channelName =
-              this.resolveSourceChannelName(normalized.sharedSource.roomId)
+            const source = this.resolveSourceChannel(normalized.sharedSource.roomId)
+            normalized.sharedSource.channelName = source?.name
+            normalized.sharedSource.avatarUrl = source?.avatarUrl
           }
           this.onMessage(normalized)
         }
@@ -338,8 +340,9 @@ export class TwitchService {
         const normalized = normalizeUserNotice(msg, handle.channelId, handle.displayName, handle.broadcasterId)
         if (normalized) {
           if (normalized.sharedSource) {
-            normalized.sharedSource.channelName =
-              this.resolveSourceChannelName(normalized.sharedSource.roomId)
+            const source = this.resolveSourceChannel(normalized.sharedSource.roomId)
+            normalized.sharedSource.channelName = source?.name
+            normalized.sharedSource.avatarUrl = source?.avatarUrl
           }
           this.onMessage(normalized)
         }
@@ -560,24 +563,24 @@ export class TwitchService {
     return undefined
   }
 
-  /** Display name for a shared-chat source room. Cache misses trigger a
-   *  background Helix lookup, so the first message may show a generic
-   *  "shared" tag and later ones get "via ChannelName". */
-  private resolveSourceChannelName(roomId: string): string | undefined {
-    const handle = this.findHandleByBroadcasterId(roomId)
-    if (handle) return handle.displayName
-    const cached = this.sourceNameCache.get(roomId)
+  /** Identity (name + avatar) of a shared-chat source room. Cache misses
+   *  trigger a background Helix lookup, so the first message may show a
+   *  generic "shared" tag and later ones get the avatar + channel name. */
+  private resolveSourceChannel(roomId: string): { name: string; avatarUrl?: string } | undefined {
+    const cached = this.sourceChannelCache.get(roomId)
     if (cached) return cached
     if (!this.sourceNameFetching.has(roomId)) {
       this.sourceNameFetching.add(roomId)
-      this.fetchSourceChannelName(roomId)
-        .catch(err => log.warn('Shared-chat name lookup failed:', err))
+      this.fetchSourceChannel(roomId)
+        .catch(err => log.warn('Shared-chat channel lookup failed:', err))
         .finally(() => this.sourceNameFetching.delete(roomId))
     }
-    return undefined
+    // Fall back to the joined-channel handle for the name while the avatar loads
+    const handle = this.findHandleByBroadcasterId(roomId)
+    return handle ? { name: handle.displayName } : undefined
   }
 
-  private async fetchSourceChannelName(roomId: string): Promise<void> {
+  private async fetchSourceChannel(roomId: string): Promise<void> {
     let accessToken = tokenStore.getAccessToken('twitch')
     if (!accessToken) accessToken = await twitchAuth.refreshAccessToken()
     const { twitchClientId: clientId } = settingsStore.get()
@@ -586,9 +589,12 @@ export class TwitchService {
       headers: { Authorization: `Bearer ${accessToken}`, 'Client-Id': clientId }
     })
     if (!resp.ok) return
-    const data = await resp.json() as { data?: Array<{ display_name?: string; login?: string }> }
-    const name = data.data?.[0]?.display_name || data.data?.[0]?.login
-    if (name) this.sourceNameCache.set(roomId, name)
+    const data = await resp.json() as {
+      data?: Array<{ display_name?: string; login?: string; profile_image_url?: string }>
+    }
+    const user = data.data?.[0]
+    const name = user?.display_name || user?.login
+    if (name) this.sourceChannelCache.set(roomId, { name, avatarUrl: user?.profile_image_url })
   }
 
   private async loadBadges(handle: TwitchChannelHandle): Promise<void> {

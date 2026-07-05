@@ -84,6 +84,7 @@ function MessageRow({ message, index }: MessageRowProps) {
   const showDeletedMessages = useStore(s => s.settings.showDeletedMessages)
   const hideCommands = useStore(s => s.settings.hideCommands)
   const showReplyContext = useStore(s => s.settings.showReplyContext)
+  const dimSharedChatMessages = useStore(s => s.settings.dimSharedChatMessages)
   const modButtons = useStore(s => s.settings.modButtons)
   const clickableUsernames = useStore(s => s.settings.clickableUsernames)
   const show7tvBadges = useStore(s => s.settings.show7tvBadges)
@@ -197,7 +198,11 @@ function MessageRow({ message, index }: MessageRowProps) {
         background: rowBg,
         paddingTop: 'var(--row-padding-y, 1px)',
         paddingBottom: 'var(--row-padding-y, 1px)',
-        opacity: message.isHistorical ? 0.55 : undefined
+        opacity: message.isHistorical
+          ? 0.55
+          : dimSharedChatMessages && message.sharedSource
+            ? 0.5
+            : undefined
       }}
       onMouseLeave={() => setTimeoutOpen(false)}
     >
@@ -337,13 +342,36 @@ function MessageRow({ message, index }: MessageRowProps) {
           )}
 
           {message.sharedSource && (
-            <span
-              className={styles.pluginTag}
-              title="Sent from another channel in a Twitch Shared Chat session"
-              style={{ background: '#a970ff22', color: '#a970ff' }}
-            >
-              {message.sharedSource.channelName ? `via ${message.sharedSource.channelName}` : 'shared'}
-            </span>
+            message.sharedSource.avatarUrl ? (
+              <img
+                src={message.sharedSource.avatarUrl}
+                alt=""
+                title={message.sharedSource.channelName
+                  ? `From ${message.sharedSource.channelName}'s chat`
+                  : 'From another channel in this Shared Chat'}
+                loading="lazy"
+                draggable={false}
+                style={{
+                  display: 'inline-block',
+                  verticalAlign: 'middle',
+                  width: '14px',
+                  height: '14px',
+                  borderRadius: '50%',
+                  marginRight: '4px',
+                  outline: '1px solid #a970ff55'
+                }}
+              />
+            ) : (
+              <span
+                className={styles.pluginTag}
+                title={message.sharedSource.channelName
+                  ? `From ${message.sharedSource.channelName}'s chat`
+                  : 'Sent from another channel in a Twitch Shared Chat session'}
+                style={{ background: '#a970ff22', color: '#a970ff' }}
+              >
+                {message.sharedSource.channelName ? `via ${message.sharedSource.channelName}` : 'shared'}
+              </span>
+            )
           )}
 
           {showBadges && <InlineBadges badges={message.badges} />}

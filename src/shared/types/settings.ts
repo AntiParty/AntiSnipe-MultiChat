@@ -49,6 +49,8 @@ export interface AppSettings {
   messageSpacing: MessageSpacing
   alternatingRows: boolean
   usernameDisplay: UsernameDisplay
+  /** Gray out messages that arrive via Twitch Shared Chat from other channels. */
+  dimSharedChatMessages: boolean
 
   // Emotes
   enabledProviders: EmoteProviderSettings
@@ -112,6 +114,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   messageSpacing: 'normal',
   alternatingRows: false,
   usernameDisplay: 'display-name',
+  dimSharedChatMessages: false,
   enabledProviders: { sevenTv: true, bttv: true, ffz: true },
   animateEmotes: 'always',
   show7tvBadges: true,

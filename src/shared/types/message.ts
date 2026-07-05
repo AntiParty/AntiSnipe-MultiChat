@@ -58,7 +58,7 @@ export interface NormalizedMessage {
   pluginAction?: PluginAction
   isHistorical?: boolean
   /** Twitch Shared Chat: set when the message originated in a different channel. */
-  sharedSource?: { roomId: string; channelName?: string }
+  sharedSource?: { roomId: string; channelName?: string; avatarUrl?: string }
   /** Raw badge set IDs from the platform (e.g. 'moderator', 'subscriber').
    *  Unlike `badges`, present even when badge images failed to resolve —
    *  role detection must not depend on image caches. */
