@@ -81,16 +81,42 @@ class PlatformManager {
     if (action?.type === 'hide') return
     if (action?.type === 'command') {
       // Bot-style: plugin intercepts an incoming message and sends a response.
-      // Fire-and-forget so a slow lookup (e.g. !song) never delays message delivery.
-      this.respondToPluginCommand(msg, action.respond).catch(err =>
-        log.error('Plugin command send failed:', err)
-      )
+      // Only respond in the signed-in user's OWN channel, and never to
+      // foreign Shared Chat messages — otherwise the account would post
+      // bot replies into other streamers' chats.
+      if (!msg.sharedSource && this.isOwnChannel(msg.channelId)) {
+        // Fire-and-forget so a slow lookup (e.g. !song) never delays delivery
+        this.respondToPluginCommand(msg, action.respond).catch(err =>
+          log.error('Plugin command send failed:', err)
+        )
+      } else {
+        log.info(`Plugin command ignored in ${msg.channelId} (not own channel or shared chat)`)
+      }
       // Fall through — still show the original message in chat
     } else if (action) {
       // highlight / tag / replace — bake into message for renderer
       msg.pluginAction = action
     }
     broadcaster.enqueue(msg)
+  }
+
+  /** True when the channel belongs to the signed-in account (their own chat). */
+  private isOwnChannel(channelId: string): boolean {
+    const channel = settingsStore.get().channels.find(c => c.id === channelId)
+    if (!channel) return false
+    if (channel.platform === 'twitch') {
+      const { username } = tokenStore.getUserInfo('twitch')
+      return !!username && channel.slug.toLowerCase() === username.toLowerCase()
+    }
+    if (channel.platform === 'youtube') {
+      // YouTube usernames are channel titles — compare against slug/display name
+      const { username } = tokenStore.getUserInfo('youtube')
+      return !!username && (
+        channel.displayName.toLowerCase() === username.toLowerCase() ||
+        channel.slug.replace(/^@/, '').toLowerCase() === username.toLowerCase()
+      )
+    }
+    return false
   }
 
   private async respondToPluginCommand(msg: NormalizedMessage, respond: string): Promise<void> {
