@@ -333,9 +333,11 @@ export class TwitchService {
         const handle = this.findHandleBySlug(channel)
         if (!handle) break
 
-        // Shared Chat: same dedup as PRIVMSG so subs/raids don't show twice
+        // Shared Chat: drop ALL foreign event notices — another channel's
+        // subs/resubs/raids/announcements don't belong in this chat
+        // (regular chat messages are handled separately in PRIVMSG)
         const shared = getSharedChatInfo(msg.tags, handle.broadcasterId)
-        if (shouldDropSharedMessage(shared, !!(shared && this.findHandleByBroadcasterId(shared.sourceRoomId)))) break
+        if (shared?.isForeign) break
 
         const normalized = normalizeUserNotice(msg, handle.channelId, handle.displayName, handle.broadcasterId)
         if (normalized) {
