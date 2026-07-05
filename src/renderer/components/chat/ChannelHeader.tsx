@@ -1,5 +1,41 @@
 import { useState, useRef, useEffect } from 'react'
 import { useStore } from '../../store'
+import type { ChannelConfig } from '@shared/types/channel'
+
+function openExternal(url: string) {
+  window.chatBridge.invoke('shell:openExternal', { url }).catch(() => {})
+}
+
+/** Per-platform browser links for the header context menu. */
+function channelLinks(channel: ChannelConfig): Array<{ label: string; url: string }> {
+  const { platform, slug } = channel
+  if (platform === 'twitch') {
+    return [
+      { label: 'Open Stream in Browser', url: `https://www.twitch.tv/${slug}` },
+      { label: 'Open Chat Popout', url: `https://www.twitch.tv/popout/${slug}/chat` },
+      { label: 'Open Mod View', url: `https://www.twitch.tv/moderator/${slug}` }
+    ]
+  }
+  if (platform === 'youtube') {
+    // slug may be a handle, a full URL, or an 11-char video ID
+    const streamUrl = slug.startsWith('http')
+      ? slug
+      : /^[A-Za-z0-9_-]{11}$/.test(slug)
+        ? `https://www.youtube.com/watch?v=${slug}`
+        : `https://www.youtube.com/@${slug.replace(/^@/, '')}/live`
+    return [
+      { label: 'Open Stream in Browser', url: streamUrl },
+      { label: 'Open YouTube Studio (mod tools)', url: 'https://studio.youtube.com' }
+    ]
+  }
+  if (platform === 'kick') {
+    return [{ label: 'Open Stream in Browser', url: `https://kick.com/${slug}` }]
+  }
+  if (platform === 'tiktok') {
+    return [{ label: 'Open Live in Browser', url: `https://www.tiktok.com/@${slug.replace(/^@/, '')}/live` }]
+  }
+  return []
+}
 
 /** "1h 13m" style uptime from an ISO start timestamp. */
 function formatUptime(startedAt: string, now: number): string | null {
@@ -111,20 +147,22 @@ export default function ChannelHeader() {
 
   return (
     <>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '3px 10px',
-        background: 'var(--surface-1)',
-        borderBottom: '1px solid var(--border)',
-        flexShrink: 0,
-        minHeight: '22px',
-        gap: '6px',
-        position: 'relative'
-      }}>
+      <div
+        onContextMenu={handleLiveContextMenu}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '3px 10px',
+          background: 'var(--surface-1)',
+          borderBottom: '1px solid var(--border)',
+          flexShrink: 0,
+          minHeight: '22px',
+          gap: '6px',
+          position: 'relative'
+        }}
+      >
         <span
-          onContextMenu={handleLiveContextMenu}
           title={isLive ? (info?.title || undefined) : undefined}
           style={{
             fontSize: '11px',
@@ -173,11 +211,22 @@ export default function ChannelHeader() {
           position: 'fixed', top: menu.y, left: menu.x, zIndex: 200,
           background: 'var(--surface-2)', border: '1px solid var(--border)',
           borderRadius: '5px', boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-          overflow: 'hidden', minWidth: '130px'
+          overflow: 'hidden', minWidth: '170px'
         }}>
+          {channelLinks(channel).map(item => (
+            <button
+              key={item.url}
+              onClick={() => { openExternal(item.url); setMenu(null) }}
+              style={{ display: 'block', width: '100%', padding: '7px 12px', background: 'none', border: 'none', textAlign: 'left', fontSize: '12px', color: 'var(--text-primary)', cursor: 'pointer' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-3)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'none' }}
+            >
+              {item.label}
+            </button>
+          ))}
           <button
             onClick={handleClearChat}
-            style={{ display: 'block', width: '100%', padding: '7px 12px', background: 'none', border: 'none', textAlign: 'left', fontSize: '12px', color: 'var(--text-primary)', cursor: 'pointer' }}
+            style={{ display: 'block', width: '100%', padding: '7px 12px', background: 'none', border: 'none', borderTop: '1px solid var(--border)', textAlign: 'left', fontSize: '12px', color: 'var(--text-primary)', cursor: 'pointer' }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-3)' }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'none' }}
           >
