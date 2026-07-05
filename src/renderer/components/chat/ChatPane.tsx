@@ -62,6 +62,17 @@ export default function ChatPane() {
     ? filtered.slice(filtered.length - RENDER_LIMIT)
     : filtered
 
+  // Chatterino-style scrollbar minimap: a colored tick per notable message,
+  // positioned by its place in the rendered window.
+  const marks = visibleMessages.reduce<Array<{ pos: number; color: string }>>((acc, m, i) => {
+    let color: string | null = null
+    if (m.isMention) color = 'var(--accent)'
+    else if (m.messageType === 'redeem') color = '#a970ff'
+    else if (m.isHighlighted) color = '#f5c518'
+    if (color) acc.push({ pos: (i + 0.5) / visibleMessages.length, color })
+    return acc
+  }, [])
+
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
     const el = scrollRef.current
     if (!el) return
@@ -164,25 +175,58 @@ export default function ChatPane() {
           </p>
         </div>
       ) : (
-        <div
-          ref={scrollRef}
-          onScroll={handleScroll}
-          onMouseEnter={() => { if (pauseScrollOnHover) hoveredRef.current = true }}
-          onMouseLeave={() => { hoveredRef.current = false }}
-          onMouseUp={e => {
-            const target = e.target as Element
-            if (target.closest('button, a, input, textarea, select')) return
-            const selection = window.getSelection()
-            if (!selection || selection.isCollapsed) {
-              chatInputRef.current?.focus()
-            }
-          }}
-          className="flex-1 overflow-y-auto py-1"
-          style={{ overflowAnchor: 'none' }}
-        >
-          {visibleMessages.map((msg, index) => (
-            <MessageRow key={msg.id} message={msg} index={index} />
-          ))}
+        <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            onMouseEnter={() => { if (pauseScrollOnHover) hoveredRef.current = true }}
+            onMouseLeave={() => { hoveredRef.current = false }}
+            onMouseUp={e => {
+              const target = e.target as Element
+              if (target.closest('button, a, input, textarea, select')) return
+              const selection = window.getSelection()
+              if (!selection || selection.isCollapsed) {
+                chatInputRef.current?.focus()
+              }
+            }}
+            className="h-full overflow-y-auto py-1"
+            style={{ overflowAnchor: 'none' }}
+          >
+            {visibleMessages.map((msg, index) => (
+              <MessageRow key={msg.id} message={msg} index={index} />
+            ))}
+          </div>
+
+          {/* Scrollbar highlight minimap */}
+          {marks.length > 0 && (
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                right: 0,
+                width: '3px',
+                pointerEvents: 'none',
+                zIndex: 5
+              }}
+            >
+              {marks.map((mark, i) => (
+                <div
+                  key={i}
+                  style={{
+                    position: 'absolute',
+                    top: `${mark.pos * 100}%`,
+                    right: 0,
+                    width: '100%',
+                    height: '2px',
+                    background: mark.color,
+                    borderRadius: '1px'
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

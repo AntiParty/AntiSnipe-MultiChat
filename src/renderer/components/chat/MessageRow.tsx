@@ -1,6 +1,6 @@
 import { memo, useState, useCallback } from 'react'
 import { clsx } from 'clsx'
-import { Trash2, Clock, Ban, ShieldOff } from 'lucide-react'
+import { Trash2, Ban, ShieldOff } from 'lucide-react'
 import MessageContent from './MessageContent'
 import { PlatformLogo } from '../ui/PlatformLogos'
 import styles from '../../styles/chat.module.css'
@@ -247,10 +247,16 @@ function MessageRow({ message, index }: MessageRowProps) {
               <span style={{ position: 'relative', display: 'inline-flex' }}>
                 <button
                   className={styles.modBtn}
-                  title="Timeout user"
-                  onClick={e => { e.stopPropagation(); setTimeoutOpen(v => !v) }}
+                  title={`Timeout ${formatDuration(modButtons.timeoutPresets[0] ?? 600)} — right-click for more durations`}
+                  onClick={e => {
+                    e.stopPropagation()
+                    setTimeoutOpen(false)
+                    fireModAction('timeout', modButtons.timeoutPresets[0] ?? 600)
+                  }}
+                  onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setTimeoutOpen(v => !v) }}
+                  style={{ fontSize: '8px', fontWeight: 700, letterSpacing: '-0.02em' }}
                 >
-                  <Clock size={10} />
+                  {formatDuration(modButtons.timeoutPresets[0] ?? 600)}
                 </button>
                 {timeoutOpen && (
                   <span className={styles.timeoutMenuLeft}>

@@ -146,16 +146,15 @@ export default function ChatTabs() {
 
   return (
     <>
-      {/* Tab bar */}
+      {/* Tab bar — Chatterino-style boxy tabs that wrap into extra rows */}
       <div style={{
         display: 'flex',
-        alignItems: 'stretch',
-        height: '26px',
-        background: 'var(--surface-1)',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '2px',
+        padding: '2px 2px',
+        background: 'var(--surface-0)',
         borderBottom: '1px solid var(--border)',
-        overflowX: 'auto',
-        overflowY: 'hidden',
-        scrollbarWidth: 'none',
         flexShrink: 0
       }}>
         <Tab
@@ -171,8 +170,8 @@ export default function ChatTabs() {
             isActive={activeChannelId === channel.id}
             onClick={() => setActiveChannel(channel.id)}
             platformColor={PLATFORM_COLORS[channel.platform]}
+            isLive={(viewerCounts[channel.id] ?? 0) > 0}
             unread={unreadCounts[channel.id] ?? 0}
-            viewerCount={viewerCounts[channel.id]}
             onRemove={e => handleRemove(channel.id, e)}
             onRename={newName => handleRename(channel.id, newName)}
             onChangeChannel={() => handleChangeChannel(channel)}
@@ -185,14 +184,25 @@ export default function ChatTabs() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '28px',
+            width: '24px',
+            height: '24px',
             flexShrink: 0,
             border: 'none',
-            borderBottom: '2px solid transparent',
             background: 'transparent',
             color: 'var(--text-muted)',
             cursor: 'pointer',
-            transition: 'color 0.1s'
+            borderRadius: '2px',
+            transition: 'color 0.1s, background 0.1s'
+          }}
+          onMouseEnter={e => {
+            const el = e.currentTarget as HTMLElement
+            el.style.background = 'var(--surface-2)'
+            el.style.color = 'var(--text-primary)'
+          }}
+          onMouseLeave={e => {
+            const el = e.currentTarget as HTMLElement
+            el.style.background = 'transparent'
+            el.style.color = 'var(--text-muted)'
           }}
         >
           <Plus size={12} />
@@ -335,6 +345,7 @@ interface TabProps {
   isActive: boolean
   onClick: () => void
   platformColor?: string
+  isLive?: boolean
   unread?: number
   viewerCount?: number
   onRemove?: (e: React.MouseEvent) => void
@@ -342,7 +353,7 @@ interface TabProps {
   onChangeChannel?: () => void
 }
 
-function Tab({ label, isActive, onClick, platformColor, unread, viewerCount, onRemove, onRename, onChangeChannel }: TabProps) {
+function Tab({ label, isActive, onClick, platformColor, isLive, unread, viewerCount, onRemove, onRename, onChangeChannel }: TabProps) {
   const [hovered, setHovered] = useState(false)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [renaming, setRenaming] = useState(false)
@@ -390,30 +401,33 @@ function Tab({ label, isActive, onClick, platformColor, unread, viewerCount, onR
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '4px',
-          padding: '0 8px',
+          gap: '5px',
+          padding: '0 9px',
           fontSize: '11px',
+          fontWeight: isActive || (unread ?? 0) > 0 ? 600 : 400,
           whiteSpace: 'nowrap',
           flexShrink: 0,
-          height: '100%',
+          height: '24px',
           cursor: 'pointer',
-          borderBottom: isActive
-            ? `2px solid ${platformColor ?? 'var(--accent)'}`
-            : '2px solid transparent',
-          background: isActive || hovered ? 'var(--surface-2)' : 'transparent',
-          color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+          borderRadius: '2px',
+          boxShadow: isActive ? `inset 0 2px 0 ${platformColor ?? 'var(--accent)'}` : undefined,
+          background: isActive ? 'var(--surface-3)' : hovered ? 'var(--surface-2)' : 'var(--surface-1)',
+          color: isActive || (unread ?? 0) > 0 ? 'var(--text-primary)' : 'var(--text-secondary)',
           transition: 'background 0.1s'
         }}
       >
-        {platformColor && (
-          <span style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            background: platformColor,
-            flexShrink: 0,
-            opacity: isActive ? 1 : 0.7
-          }} />
+        {platformColor && isLive && (
+          <span
+            title="Live"
+            style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              background: platformColor,
+              boxShadow: `0 0 4px ${platformColor}`,
+              flexShrink: 0
+            }}
+          />
         )}
         {renaming ? (
           <input
@@ -447,20 +461,11 @@ function Tab({ label, isActive, onClick, platformColor, unread, viewerCount, onR
           </span>
         )}
         {unread != null && unread > 0 && !isActive && (
-          <span style={{
-            fontSize: '9px',
-            padding: '0 4px',
-            background: 'var(--accent)',
-            color: '#fff',
-            minWidth: '15px',
-            textAlign: 'center',
-            borderRadius: '8px',
-            flexShrink: 0
-          }}>
+          <span style={{ fontSize: '9px', color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>
             {unread > 99 ? '99+' : unread}
           </span>
         )}
-        {hovered && !renaming && onRemove && (
+        {(isActive || hovered) && !renaming && onRemove && (
           <button
             onClick={onRemove}
             title="Remove channel"
@@ -471,6 +476,7 @@ function Tab({ label, isActive, onClick, platformColor, unread, viewerCount, onR
               background: 'none',
               border: 'none',
               padding: '1px',
+              marginRight: '-3px',
               color: 'var(--text-muted)',
               cursor: 'pointer',
               flexShrink: 0,

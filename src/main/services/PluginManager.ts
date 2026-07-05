@@ -244,29 +244,94 @@ export default function botFilter(msg) {
       {
         name: 'spam-filter.js',
         content: `// @name Spam Filter
-// Hides messages that look like spam:
-//   - 70%+ uppercase letters
-//   - A single character repeated 6+ times (aaaaaa, !!!!!!)
-//   - Over 400 characters long
+// Hides messages that look like spam. Mods and subscribers are never
+// filtered. Tune the thresholds below to taste.
+
+const MIN_CAPS_LEN = 12       // ignore short shouts
+const CAPS_RATIO = 0.75       // fraction of letters that are uppercase
+const MAX_REPEAT = 8          // same char repeated N+ times
+const MAX_WORD_REPEAT = 6     // same word repeated N+ times in a row
+const MAX_LENGTH = 500        // wall of text
 
 export default function spamFilter(msg) {
+  if (msg.isMod || msg.isSubscriber) return null
   const text = msg.text.trim()
   if (!text) return null
 
-  // All-caps check (ignore short messages)
-  if (text.length > 10) {
+  // ALL CAPS
+  if (text.length >= MIN_CAPS_LEN) {
     const letters = text.replace(/[^a-zA-Z]/g, '')
-    if (letters.length > 5) {
-      const upperRatio = letters.replace(/[^A-Z]/g, '').length / letters.length
-      if (upperRatio >= 0.7) return { type: 'hide' }
+    if (letters.length > 6) {
+      const upper = letters.replace(/[^A-Z]/g, '').length / letters.length
+      if (upper >= CAPS_RATIO) return { type: 'hide' }
     }
   }
 
-  // Repeated character spam
-  if (/(.)\\1{5,}/.test(text)) return { type: 'hide' }
+  // Repeated single character: aaaaaa, !!!!!!
+  if (new RegExp('(.)\\\\1{' + (MAX_REPEAT - 1) + ',}').test(text)) return { type: 'hide' }
+
+  // Repeated word: "lol lol lol lol lol lol"
+  if (new RegExp('\\\\b(\\\\w+)(\\\\s+\\\\1\\\\b){' + (MAX_WORD_REPEAT - 1) + ',}', 'i').test(text)) {
+    return { type: 'hide' }
+  }
 
   // Wall of text
-  if (text.length > 400) return { type: 'hide' }
+  if (text.length > MAX_LENGTH) return { type: 'hide' }
+
+  return null
+}
+`
+      },
+      {
+        name: 'first-message-highlight.js',
+        content: `// @name First-Time Chatter Highlight
+// Highlights the FIRST message each user sends this session, so you never
+// miss a new chatter saying hi. Remembers who has spoken until the app closes.
+
+const seen = new Set()
+
+export default function firstMessage(msg) {
+  const key = msg.platform + ':' + msg.channelId + ':' + msg.author.toLowerCase()
+  if (seen.has(key)) return null
+  seen.add(key)
+  return { type: 'highlight', color: 'rgba(80, 200, 120, 0.16)' }
+}
+`
+      },
+      {
+        name: 'link-filter.js',
+        content: `// @name Link Filter
+// Hides messages containing links from non-mods / non-subscribers.
+// Good for locking down chat during a raid or when link spam hits.
+// Set BLOCK_ALL to true to hide links from everyone.
+
+const BLOCK_ALL = false
+const LINK_RE = /(https?:\\/\\/|www\\.|[a-z0-9-]+\\.(com|net|org|gg|tv|io|xyz|link)\\b)/i
+
+export default function linkFilter(msg) {
+  if (!BLOCK_ALL && (msg.isMod || msg.isSubscriber)) return null
+  if (LINK_RE.test(msg.text)) return { type: 'hide' }
+  return null
+}
+`
+      },
+      {
+        name: 'copypasta-filter.js',
+        content: `// @name Copypasta / Emote-Spam Filter
+// Hides messages that are just a wall of repeated emotes or the same short
+// token pasted over and over (common raid copypasta). Mods/subs are exempt.
+
+export default function copypasta(msg) {
+  if (msg.isMod || msg.isSubscriber) return null
+  const tokens = msg.text.trim().split(/\\s+/).filter(Boolean)
+  if (tokens.length < 8) return null
+
+  // If 80%+ of tokens are the same single token, it's spam
+  const counts = new Map()
+  for (const t of tokens) counts.set(t, (counts.get(t) || 0) + 1)
+  let top = 0
+  for (const n of counts.values()) if (n > top) top = n
+  if (top / tokens.length >= 0.8) return { type: 'hide' }
 
   return null
 }
