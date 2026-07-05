@@ -89,6 +89,29 @@ function buildChatSlice(set: SetState): ChatSlice {
       set(state => {
         for (const msg of messages) {
           const { channelId } = msg
+
+          // IRC echo of our own message: swap it in for the optimistic
+          // 'self-…' row so the message gains its real ID (delete/pin need it)
+          if (msg.isSelfEcho) {
+            const bucket = state.messagesByChannel[channelId]
+            let replaced = false
+            if (bucket) {
+              for (let i = bucket.length - 1; i >= 0 && i >= bucket.length - 20; i--) {
+                if (
+                  bucket[i].id.startsWith('self-') &&
+                  bucket[i].raw === msg.raw &&
+                  bucket[i].authorName.toLowerCase() === msg.authorName.toLowerCase()
+                ) {
+                  bucket[i] = msg
+                  replaced = true
+                  break
+                }
+              }
+            }
+            if (replaced) continue
+            // No optimistic row found (e.g. sent from another window) — fall
+            // through and append like a normal message
+          }
           if (!state.messagesByChannel[channelId]) state.messagesByChannel[channelId] = []
           state.messagesByChannel[channelId].push(msg)
           if (state.messagesByChannel[channelId].length > MAX) {

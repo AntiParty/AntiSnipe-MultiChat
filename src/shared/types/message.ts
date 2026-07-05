@@ -61,6 +61,9 @@ export interface NormalizedMessage {
   sharedSource?: { roomId: string; channelName?: string; avatarUrl?: string }
   /** Twitch first-msg tag: the author's first message ever in this channel. */
   isFirstMessage?: boolean
+  /** IRC echo of a message we sent — replaces the optimistic 'self-…' row so
+   *  the message gains its real ID (needed for delete/pin). */
+  isSelfEcho?: boolean
   /** Raw badge set IDs from the platform (e.g. 'moderator', 'subscriber').
    *  Unlike `badges`, present even when badge images failed to resolve —
    *  role detection must not depend on image caches. */

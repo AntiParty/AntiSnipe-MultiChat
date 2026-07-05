@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react'
-import { ArrowDown, Pin, Search, X as XIcon } from 'lucide-react'
+import { ArrowDown, ChevronDown, Pin, Search, X as XIcon } from 'lucide-react'
 import { MAIN_CHANNELS } from '@shared/types/ipc'
 import { useStore } from '../../store'
 import { useActiveMessages } from '../../hooks/useChat'
@@ -20,6 +20,7 @@ export default function ChatPane() {
   const [isAtBottom, setIsAtBottom] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
+  const [pinExpanded, setPinExpanded] = useState(false)
 
   const messages = useActiveMessages()
   const activeChannelId = useStore(s => s.activeChannelId)
@@ -198,44 +199,85 @@ export default function ChatPane() {
         </div>
       )}
 
-      {/* Pinned message banner */}
+      {/* Pinned message card (Twitch-style: collapsed one-liner, expandable) */}
       {pinned && !pinExpired && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: '7px',
-          padding: '5px 10px',
-          background: 'rgba(169, 112, 255, 0.10)',
-          borderBottom: '1px solid rgba(169, 112, 255, 0.35)',
-          flexShrink: 0
-        }}>
-          <Pin size={11} style={{ color: '#a970ff', flexShrink: 0, marginTop: '2px' }} />
-          <div style={{ flex: 1, minWidth: 0, fontSize: '11px', lineHeight: 1.45 }}>
-            <span style={{ color: 'var(--text-muted)' }}>
-              Pinned by {pinned.pinnedByName} ·{' '}
-            </span>
-            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-              {pinned.senderName}:{' '}
-            </span>
-            <span style={{ color: 'var(--text-secondary)', wordBreak: 'break-word' }}>
+        <div
+          onClick={() => setPinExpanded(v => !v)}
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '8px',
+            padding: '6px 10px',
+            background: 'var(--surface-2)',
+            borderBottom: '1px solid var(--border)',
+            flexShrink: 0,
+            cursor: 'pointer',
+            userSelect: 'none'
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Line 1: Pinned by X */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              fontSize: '10px',
+              color: 'var(--text-muted)',
+              marginBottom: '2px'
+            }}>
+              <Pin size={10} style={{ flexShrink: 0 }} />
+              <span>Pinned by <span style={{ fontWeight: 600 }}>{pinned.pinnedByName}</span></span>
+            </div>
+            {/* Line 2: the message */}
+            <div style={{
+              fontSize: '12px',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              lineHeight: 1.4,
+              ...(pinExpanded
+                ? { wordBreak: 'break-word' as const }
+                : {
+                    whiteSpace: 'nowrap' as const,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  })
+            }}>
               {pinned.text}
-            </span>
+            </div>
+            {pinExpanded && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                marginTop: '4px',
+                fontSize: '10px',
+                color: 'var(--text-muted)'
+              }}>
+                <span>Sent by {pinned.senderName}</span>
+                {isModHere && (
+                  <button
+                    onClick={e => { e.stopPropagation(); handleUnpin() }}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'var(--danger)', fontSize: '10px', fontWeight: 600, padding: 0
+                    }}
+                  >
+                    Unpin
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-          {isModHere && (
-            <button
-              onClick={handleUnpin}
-              title="Unpin message"
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: 'var(--text-muted)', padding: '2px', flexShrink: 0
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--danger)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)' }}
-            >
-              <XIcon size={11} />
-            </button>
-          )}
+          <ChevronDown
+            size={14}
+            style={{
+              color: 'var(--text-muted)',
+              flexShrink: 0,
+              marginTop: '8px',
+              transform: pinExpanded ? 'rotate(180deg)' : undefined,
+              transition: 'transform 0.12s'
+            }}
+          />
         </div>
       )}
 

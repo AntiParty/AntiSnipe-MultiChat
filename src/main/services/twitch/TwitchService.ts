@@ -301,6 +301,23 @@ export class TwitchService {
           const echoKey = `${senderLogin}:${msg.params[1]}`
           if (this.selfMessageKeys.has(echoKey)) {
             this.selfMessageKeys.delete(echoKey)
+            // Don't drop the echo: it carries the real message ID (needed
+            // for delete/pin) and real badges. Normalize it and let the
+            // renderer swap it in for the optimistic 'self-…' row.
+            const settingsForEcho = settingsStore.get()
+            const echoed = normalizeTwitchMessage(
+              msg,
+              handle.channelId,
+              handle.displayName,
+              handle.broadcasterId,
+              settingsForEcho.mentionKeywords,
+              settingsForEcho.keywordAlerts,
+              msg.params[1]?.startsWith('\x01ACTION ') && msg.params[1].endsWith('\x01')
+            )
+            if (echoed) {
+              echoed.isSelfEcho = true
+              this.onMessage(echoed)
+            }
             break
           }
         }
